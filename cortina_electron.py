@@ -178,38 +178,35 @@ class CortinaElectron:
         glfw.init()
         self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Electronos - Gas en Flujo", None, None)
         glfw.make_context_current(self.window)
-
+        
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
-
+        
         self.shader = compileProgram(
             compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
             compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER)
         )
-
+        
         vertices = np.array([-1,-1, -1,1, 1,1, 1,-1], dtype=np.float32)
-
+        
         self.vao = glGenVertexArrays(1)
         self.vbo = glGenBuffers(1)
-
+        
         glBindVertexArray(self.vao)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
         glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8, ctypes.c_void_p(0))
         glEnableVertexAttribArray(0)
-
+        
         self.start = time.time()
-
-        # Video renderer
         self.renderer = VideoRenderer(RESOLUTION[0], RESOLUTION[1], FPS, "cortina_electron.mp4")
         if render_video:
             self.renderer.enable()
     
     def run(self):
-        duration = 6.0
+        duration = 3.0
         frame_time = 1.0 / FPS
 
         if self.renderer.enabled:
-            # Renderizado controlado por frames para video
             total_frames = int(duration * FPS)
             for frame in range(total_frames):
                 if glfw.window_should_close(self.window):
@@ -217,6 +214,7 @@ class CortinaElectron:
 
                 t = frame * frame_time
 
+                glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
                 glClearColor(0, 0, 0, 1)
                 glClear(GL_COLOR_BUFFER_BIT)
 
@@ -235,13 +233,13 @@ class CortinaElectron:
 
             self.renderer.generate_video()
         else:
-            # Demo en tiempo real
             while not glfw.window_should_close(self.window):
                 t = time.time() - self.start
 
                 if t > duration:
                     break
 
+                glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
                 glClearColor(0, 0, 0, 1)
                 glClear(GL_COLOR_BUFFER_BIT)
 
@@ -256,7 +254,7 @@ class CortinaElectron:
                 glfw.swap_buffers(self.window)
                 glfw.poll_events()
                 time.sleep(frame_time)
-
+        
         glfw.terminate()
 
 if __name__ == "__main__":

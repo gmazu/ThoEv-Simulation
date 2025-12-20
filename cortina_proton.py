@@ -1,4 +1,4 @@
-# cortina.py - Océano de mercurio metálico
+# cortina_proton.py - Océano de mercurio metálico
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -157,7 +157,7 @@ class Cortina:
             self.renderer.enable()
     
     def run(self):
-        duration = 6.0
+        duration = 3.0
         frame_time = 1.0 / FPS
 
         if self.renderer.enabled:
