@@ -1,4 +1,4 @@
-# branas.py - ThöEv con config JSON
+# branas.py - Con viewport corregido
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -164,6 +164,9 @@ class Intro:
         glfw.init()
         self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "ThöEv", None, None)
         glfw.make_context_current(self.window)
+        
+        # CRÍTICO: Configurar viewport para usar toda la ventana
+        glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
         
         self.shader = compileProgram(
             compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
