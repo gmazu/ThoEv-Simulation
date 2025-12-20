@@ -5,6 +5,8 @@ from OpenGL.GL.shaders import compileProgram, compileShader
 import numpy as np
 import time
 import json
+import ctypes
+from render_utils import VideoRenderer, parse_render_args
 
 with open('config/config.json', 'r') as f:
     CONFIG = json.load(f)
@@ -172,54 +174,91 @@ void main() {
 """
 
 class CortinaElectron:
-    def __init__(self):
+    def __init__(self, render_video=False):
         glfw.init()
         self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Electronos - Gas en Flujo", None, None)
         glfw.make_context_current(self.window)
-        
+
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
-        
+
         self.shader = compileProgram(
             compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
             compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER)
         )
-        
+
         vertices = np.array([-1,-1, -1,1, 1,1, 1,-1], dtype=np.float32)
-        
+
         self.vao = glGenVertexArrays(1)
         self.vbo = glGenBuffers(1)
-        
+
         glBindVertexArray(self.vao)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
         glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8, ctypes.c_void_p(0))
         glEnableVertexAttribArray(0)
-        
+
         self.start = time.time()
+
+        # Video renderer
+        self.renderer = VideoRenderer(RESOLUTION[0], RESOLUTION[1], FPS, "cortina_electron.mp4")
+        if render_video:
+            self.renderer.enable()
     
     def run(self):
-        while not glfw.window_should_close(self.window):
-            t = time.time() - self.start
-            
-            if t > 6.0:
-                break
-            
-            glClearColor(0, 0, 0, 1)
-            glClear(GL_COLOR_BUFFER_BIT)
-            
-            glUseProgram(self.shader)
-            glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
-            glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
-            glUniform1f(glGetUniformLocation(self.shader, "u_curvature"), CONFIG['branas']['curvature_right'])
-            
-            glBindVertexArray(self.vao)
-            glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
-            
-            glfw.swap_buffers(self.window)
-            glfw.poll_events()
-            time.sleep(1.0/FPS)
-        
+        duration = 6.0
+        frame_time = 1.0 / FPS
+
+        if self.renderer.enabled:
+            # Renderizado controlado por frames para video
+            total_frames = int(duration * FPS)
+            for frame in range(total_frames):
+                if glfw.window_should_close(self.window):
+                    break
+
+                t = frame * frame_time
+
+                glClearColor(0, 0, 0, 1)
+                glClear(GL_COLOR_BUFFER_BIT)
+
+                glUseProgram(self.shader)
+                glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
+                glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
+                glUniform1f(glGetUniformLocation(self.shader, "u_curvature"), CONFIG['branas']['curvature_right'])
+
+                glBindVertexArray(self.vao)
+                glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
+
+                self.renderer.capture_frame()
+
+                glfw.swap_buffers(self.window)
+                glfw.poll_events()
+
+            self.renderer.generate_video()
+        else:
+            # Demo en tiempo real
+            while not glfw.window_should_close(self.window):
+                t = time.time() - self.start
+
+                if t > duration:
+                    break
+
+                glClearColor(0, 0, 0, 1)
+                glClear(GL_COLOR_BUFFER_BIT)
+
+                glUseProgram(self.shader)
+                glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
+                glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
+                glUniform1f(glGetUniformLocation(self.shader, "u_curvature"), CONFIG['branas']['curvature_right'])
+
+                glBindVertexArray(self.vao)
+                glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
+
+                glfw.swap_buffers(self.window)
+                glfw.poll_events()
+                time.sleep(frame_time)
+
         glfw.terminate()
 
 if __name__ == "__main__":
-    CortinaElectron().run()
+    render_video = parse_render_args()
+    CortinaElectron(render_video=render_video).run()
