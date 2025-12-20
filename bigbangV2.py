@@ -106,18 +106,32 @@ vec2 velocityField(vec2 p, float t) {
 
 float warpTime(float tRaw, float duration) {
     float tHit = duration * 0.5;
-    float slowWindow = 2.0;
-    float slowFactor = 0.35;
-    float tStart = max(0.0, tHit - slowWindow);
+    float window1 = 2.0;
+    float window2 = 1.0;
+    float releaseWindow = 0.15;
+    float factor1 = 0.5;
+    float factor2 = 0.25;
 
-    if (tRaw <= tStart) {
+    float t0 = max(0.0, tHit - window1);
+    float t1 = max(t0, tHit - window2);
+    float t2 = max(t1, tHit - releaseWindow);
+
+    if (tRaw <= t0) {
         return tRaw;
     }
+    if (tRaw < t1) {
+        return t0 + (tRaw - t0) * factor1;
+    }
+    if (tRaw < t2) {
+        return t0 + (t1 - t0) * factor1 + (tRaw - t1) * factor2;
+    }
     if (tRaw < tHit) {
-        return tStart + (tRaw - tStart) * slowFactor;
+        return t0 + (t1 - t0) * factor1
+            + (t2 - t1) * factor2
+            + (tRaw - t2);
     }
 
-    float saved = (tHit - tStart) * (1.0 - slowFactor);
+    float saved = (t1 - t0) * (1.0 - factor1) + (t2 - t1) * (1.0 - factor2);
     return tRaw - saved;
 }
 
