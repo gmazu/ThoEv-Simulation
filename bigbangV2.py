@@ -106,9 +106,9 @@ vec2 velocityField(vec2 p, float t) {
 
 float warpTime(float tRaw, float duration) {
     float tHit = duration * 0.5;
-    float window1 = 2.0;
-    float window2 = 1.0;
-    float releaseWindow = 0.15;
+    float window1 = 1.0;
+    float window2 = 0.5;
+    float releaseWindow = 0.05;
     float factor1 = 0.5;
     float factor2 = 0.25;
 
