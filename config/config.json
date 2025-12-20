@@ -6,7 +6,8 @@
   },
   "bigbang_duration": 30.0,
   "timing": {
-    "collision_time": 2.0
+    "collision_time": 3.0,
+    "brana_travel_duration": 3.0
   },
   "branas": {
     "scale": 1.0,
@@ -25,6 +26,7 @@
     "electron_size": 0.015,
     "electron_density": 0.88,
     "electron_color": [1.0, 0.3, 0.2],
+    "electron_gas_speed": 2.0,
     "grid_density": 15.0,
     "brightness": 5.0
   },

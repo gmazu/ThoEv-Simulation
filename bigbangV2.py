@@ -1,4 +1,4 @@
-# bigbang.py - Colision entre branas
+# bigbangV2.py - Colision entre branas (proton + electron sin cambios)
 import os
 import glfw
 from OpenGL.GL import *
@@ -29,12 +29,9 @@ FRAGMENT_SHADER = """
 #version 330 core
 in vec2 vPos;
 uniform float u_time;
-uniform float u_duration;
-uniform float u_brana_travel_duration;
 uniform vec2 u_resolution;
 uniform float u_curvature_left;
 uniform float u_curvature_right;
-uniform float u_electron_gas_speed;
 out vec4 FragColor;
 
 float hash(vec2 p) {
@@ -67,14 +64,6 @@ float fbm(vec2 p) {
     return value;
 }
 
-vec3 palette(float t) {
-    vec3 a = vec3(0.5, 0.5, 0.5);
-    vec3 b = vec3(0.5, 0.5, 0.5);
-    vec3 c = vec3(1.0, 1.0, 1.0);
-    vec3 d = vec3(0.263, 0.416, 0.557);
-    return a + b * cos(6.28318 * (c * t + d));
-}
-
 vec2 W(vec2 p, float t) {
     p = (p + 3.0) * 4.0;
 
@@ -105,119 +94,121 @@ vec2 curl(vec2 p, float t) {
     return vec2(dy, -dx);
 }
 
+vec2 velocityField(vec2 p, float t) {
+    vec2 mainFlow = vec2(-1.0, 0.0);
+    vec2 wave = vec2(
+        sin(p.y * 3.0 + t * 2.0) * 0.3,
+        cos(p.x * 2.0 + t * 1.5) * 0.2
+    );
+    vec2 vortex = curl(p * 1.5, t) * 0.4;
+    return mainFlow + wave + vortex;
+}
+
 void main() {
     vec2 uv = vPos;
     float aspect = u_resolution.x / u_resolution.y;
     uv.x *= aspect;
 
-    float t = u_time;
-    float duration = u_duration;
-    float travelDuration = max(u_brana_travel_duration, 0.001);
-    float gasTime = t * u_electron_gas_speed;
+    float t = u_time * 0.5;
 
-    float travelT = min(t, travelDuration);
-    float baseProton = -aspect + (travelT / travelDuration) * (aspect * 2.0);
-    float baseElectron = aspect - (travelT / travelDuration) * (aspect * 2.0);
+    float duration = 20.0;
+    float curtainPosProton = -aspect + (u_time / duration) * (aspect * 2.0);
+    float curtainCurvedProton = curtainPosProton + u_curvature_left * uv.y * uv.y;
+    float protonMask = 1.0 - smoothstep(curtainCurvedProton - 0.1, curtainCurvedProton + 0.1, uv.x);
+    vec2 uvProton = vec2(uv.x - curtainCurvedProton, uv.y);
 
-    float tHit = travelDuration * 0.5;
-    float impact = smoothstep(tHit - 1.2, tHit + 1.2, t);
-    float impactFade = 1.0 - smoothstep(tHit + 6.0, tHit + 10.0, t);
-    impact *= impactFade;
+    float curtainPosElectron = aspect - (u_time / duration) * (aspect * 2.0);
+    float curtainCurvedElectron = curtainPosElectron - u_curvature_right * uv.y * uv.y;
+    float electronMask = smoothstep(curtainCurvedElectron - 0.1, curtainCurvedElectron + 0.1, uv.x);
+    vec2 uvElectron = vec2(uv.x - curtainCurvedElectron, uv.y);
 
-    float protonPos = baseProton - impact * 0.12;
-    float electronPos = baseElectron + impact * 0.35;
-
-    float protonCurved = protonPos + u_curvature_left * uv.y * uv.y;
-    float electronCurved = electronPos - u_curvature_right * uv.y * uv.y;
-
-    float edge = 0.12;
-    float protonMask = 1.0 - smoothstep(protonCurved - edge, protonCurved + edge, uv.x);
-    float electronMask = smoothstep(electronCurved - edge, electronCurved + edge, uv.x);
-
-    float contactX = protonCurved;
-    float distContact = abs(uv.x - contactX);
-    float contactBand = impact * exp(-distContact * 18.0) * (1.0 - abs(uv.y) * 0.7);
-
-    vec2 toContact = vec2(uv.x - contactX, uv.y);
-    float scatter = impact * smoothstep(0.45, 0.0, distContact);
-    vec2 scatterDir = normalize(toContact + vec2(0.001, 0.0));
-    vec2 scatterJitter = vec2(
-        fbm(uv * 6.0 + gasTime * 1.2),
-        fbm(uv * 6.0 - gasTime * 1.1)
-    ) - 0.5;
-    vec2 electronUV = uv;
-    electronUV += scatterDir * scatter * 0.08;
-    electronUV += scatterJitter * scatter * 0.12;
-    electronUV.x += impact * 0.12;
-
-    float tMetal = t * 0.5;
+    // PROTON (brana_proton.py)
     vec2 eps = vec2(4.0 / u_resolution.y, 0.0);
-    float f = bumpFunc(uv, tMetal);
-    float fx = bumpFunc(uv - eps.xy, tMetal);
-    float fy = bumpFunc(uv - eps.yx, tMetal);
+    float f = bumpFunc(uvProton, t);
+    float fx = bumpFunc(uvProton - eps.xy, t);
+    float fy = bumpFunc(uvProton - eps.yx, t);
+
+    const float bumpFactor = 0.05;
     fx = (fx - f) / eps.x;
     fy = (fy - f) / eps.x;
-    vec3 sn = normalize(vec3(0.0, 0.0, -1.0) + vec3(fx, fy, 0.0) * 0.05);
-    vec3 rd = normalize(vec3(uv, 1.0));
-    vec3 lp = vec3(cos(t) * 0.5, sin(t) * 0.2, -1.0);
-    vec3 ld = normalize(lp - vec3(uv, 0.0));
-    float diff = pow(max(dot(sn, ld), 0.0), 4.0);
-    float spec = pow(max(dot(reflect(-ld, sn), -rd), 0.0), 12.0);
-    vec3 mercuryBase = vec3(0.8, 0.85, 0.9);
-    vec3 protonCol = mercuryBase * (f * 0.5 + 0.5);
-    protonCol = protonCol * (diff * vec3(1.0, 0.97, 0.92) * 2.0 + 0.5)
-        + vec3(1.0, 0.9, 0.8) * spec * 2.0;
 
-    float turbulence = fbm(electronUV * 3.0 + gasTime * 0.3);
-    float density = turbulence * 0.6 + 0.3;
-    float vortex = length(curl(electronUV * 4.0, gasTime)) * 1.5;
+    vec3 sn = normalize(vec3(0.0, 0.0, -1.0) + vec3(fx, fy, 0.0) * bumpFactor);
+    vec3 sp = vec3(uv, 0.0);
+    vec3 rd = normalize(vec3(uv, 1.0));
+    vec3 lp = vec3(cos(u_time) * 0.5, sin(u_time) * 0.2, -1.0);
+
+    vec3 ld = lp - sp;
+    float lDist = max(length(ld), 0.0001);
+    ld /= lDist;
+
+    float atten = 1.0 / (1.0 + lDist * lDist * 0.15);
+    atten *= f * 0.9 + 0.1;
+
+    float diff = max(dot(sn, ld), 0.0);
+    diff = pow(diff, 4.0) * 0.66 + pow(diff, 8.0) * 0.34;
+
+    float spec = pow(max(dot(reflect(-ld, sn), -rd), 0.0), 12.0);
+
+    vec3 mercuryBase = vec3(0.8, 0.85, 0.9);
+    vec3 texCol = mercuryBase * (f * 0.5 + 0.5);
+    vec3 protonCol = (texCol * (diff * vec3(1.0, 0.97, 0.92) * 2.0 + 0.5) +
+                      vec3(1.0, 0.9, 0.8) * spec * 2.0) * atten;
+
+    float ref = max(dot(reflect(rd, sn), vec3(1.0)), 0.0);
+    protonCol += protonCol * pow(ref, 4.0) * vec3(0.4, 0.5, 0.6) * 2.0;
+
+    // ELECTRON (brana_electron.py)
+    vec2 flow = velocityField(uvElectron, t);
+    vec2 uvAdvected = uvElectron;
+    float dt = 0.05;
+    for (int i = 0; i < 3; i++) {
+        vec2 vel = velocityField(uvAdvected, t - float(i) * dt);
+        uvAdvected -= vel * dt;
+    }
+
+    vec2 distortion = curl(uvAdvected * 2.0, t) * 0.25;
+    vec2 uvFinal = uvAdvected + distortion;
+
+    float turbulence = fbm(uvFinal * 10.0 + t * 0.3);
+    float density = turbulence * 1.0 + 0.3;
+
+    float vortex = length(curl(uvFinal * 4.0, t)) * 1.5;
     vortex = smoothstep(0.2, 0.7, vortex);
+
+    float distToCurtain = abs(uv.x - curtainCurvedElectron);
+    float edgeTurbulence = 0.0;
+    if (distToCurtain < 0.3) {
+        float edgeNoise = fbm(uvElectron * 8.0 + t * 3.0);
+        edgeTurbulence = edgeNoise * (1.0 - distToCurtain / 0.3) * 0.5;
+        vec2 edgeCurl = curl(uvElectron * 10.0, t * 2.0);
+        edgeTurbulence += length(edgeCurl) * 0.3;
+    }
+
     vec3 gasBlue = vec3(0.3, 0.7, 1.0);
     vec3 glowBlue = vec3(0.5, 0.85, 1.0);
     vec3 edgeBlue = vec3(0.7, 0.9, 1.0);
+
     vec3 electronCol = mix(gasBlue, glowBlue, turbulence);
     electronCol *= density;
     electronCol += vec3(0.4, 0.8, 1.0) * vortex * 0.4;
+    electronCol += edgeBlue * edgeTurbulence * 0.8;
 
-    float edgeTurbulence = fbm(electronUV * 8.0 + gasTime * 3.0);
-    electronCol += edgeBlue * edgeTurbulence * scatter * 0.8;
-
-    vec3 fusedCol = mix(protonCol, electronCol, 0.45);
-    fusedCol += vec3(1.0, 0.95, 0.85) * contactBand * 1.8;
+    float atmosphericGlow = fbm(uvFinal * 1.5 + t * 0.2) * 0.3;
+    electronCol += gasBlue * atmosphericGlow * 0.15;
 
     vec3 col = protonCol * protonMask + electronCol * electronMask;
-    col = mix(col, fusedCol, contactBand);
-
-    vec2 uvBig = vec2((uv.x - contactX), uv.y) * 10.0;
-    vec2 uv0 = uvBig;
-    vec3 bigbangCol = vec3(0.0);
-    for (float i = 0.0; i < 4.0; i++) {
-        uvBig = fract(uvBig * 1.5) - 0.5;
-        float d = length(uvBig) * exp(-length(uv0));
-        vec3 pal = palette(length(uv0) + i * 0.4 + t * 0.4);
-        d = sin(d * 8.0 + t) / 8.0;
-        d = abs(d);
-        d = pow(0.01 / d, 1.2);
-        bigbangCol += pal * d;
-    }
-
-    float bigbangMix = smoothstep(0.1, 0.9, impact) * smoothstep(0.15, 0.45, contactBand);
-    col = mix(col, bigbangCol, bigbangMix);
-
-    float visible = max(protonMask, electronMask);
-    visible = max(visible, bigbangMix);
-    col *= visible;
+    col *= max(protonMask, electronMask);
 
     FragColor = vec4(sqrt(clamp(col, 0.0, 1.0)), 1.0);
 }
 """
 
 
-class BigBang:
+class BigBangV2:
     def __init__(self, render_video=False):
         glfw.init()
         self.window = glfw.create_window(
-            RESOLUTION[0], RESOLUTION[1], "BigBang", None, None
+            RESOLUTION[0], RESOLUTION[1], "BigBangV2", None, None
         )
         glfw.make_context_current(self.window)
 
@@ -246,14 +237,8 @@ class BigBang:
             self.renderer.enable()
 
     def run(self):
-        duration = float(CONFIG.get('bigbang_duration', 30.0))
+        duration = 10.0
         frame_time = 1.0 / FPS
-        electron_gas_speed = float(
-            CONFIG.get('particles', {}).get('electron_gas_speed', 1.0)
-        )
-        brana_travel_duration = float(
-            CONFIG.get('timing', {}).get('brana_travel_duration', 3.0)
-        )
 
         if self.renderer.enabled:
             total_frames = int(duration * FPS)
@@ -268,11 +253,6 @@ class BigBang:
 
                 glUseProgram(self.shader)
                 glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
-                glUniform1f(glGetUniformLocation(self.shader, "u_duration"), duration)
-                glUniform1f(
-                    glGetUniformLocation(self.shader, "u_brana_travel_duration"),
-                    brana_travel_duration,
-                )
                 glUniform2f(
                     glGetUniformLocation(self.shader, "u_resolution"),
                     RESOLUTION[0],
@@ -285,10 +265,6 @@ class BigBang:
                 glUniform1f(
                     glGetUniformLocation(self.shader, "u_curvature_right"),
                     CONFIG['branas']['curvature_right'],
-                )
-                glUniform1f(
-                    glGetUniformLocation(self.shader, "u_electron_gas_speed"),
-                    electron_gas_speed,
                 )
 
                 glBindVertexArray(self.vao)
@@ -312,11 +288,6 @@ class BigBang:
 
                 glUseProgram(self.shader)
                 glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
-                glUniform1f(glGetUniformLocation(self.shader, "u_duration"), duration)
-                glUniform1f(
-                    glGetUniformLocation(self.shader, "u_brana_travel_duration"),
-                    brana_travel_duration,
-                )
                 glUniform2f(
                     glGetUniformLocation(self.shader, "u_resolution"),
                     RESOLUTION[0],
@@ -329,10 +300,6 @@ class BigBang:
                 glUniform1f(
                     glGetUniformLocation(self.shader, "u_curvature_right"),
                     CONFIG['branas']['curvature_right'],
-                )
-                glUniform1f(
-                    glGetUniformLocation(self.shader, "u_electron_gas_speed"),
-                    electron_gas_speed,
                 )
 
                 glBindVertexArray(self.vao)
@@ -347,4 +314,4 @@ class BigBang:
 
 if __name__ == "__main__":
     render_video = parse_render_args()
-    BigBang(render_video=render_video).run()
+    BigBangV2(render_video=render_video).run()

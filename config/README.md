@@ -57,6 +57,20 @@ Este documento explica cada parámetro en `config.json` con ejemplos y resultado
 
 ---
 
+### `brana_travel_duration`
+**Qué hace:** Duración (en segundos) del avance de brana/electrón en `bigbang.py`
+
+**Rango recomendado:** 2.0 a 5.0
+
+**Ejemplos:**
+- `3.0` → Velocidad igual a `brana_proton.py` / `brana_electron.py`
+- `5.0` → Avance más lento
+- `2.0` → Avance más rápido
+
+**Resultado:** Ajusta la velocidad de avance en `bigbang.py` sin cambiar la duración total.
+
+---
+
 ## 🌊 BRANAS
 
 ### `scale`
@@ -160,6 +174,20 @@ Este documento explica cada parámetro en `config.json` con ejemplos y resultado
 - `[1.0, 1.0, 1.0]` → Blanco (neutral)
 
 **Resultado:** Color de las "perlas" brillantes dentro de cada brana.
+
+---
+
+### `electron_gas_speed`
+**Qué hace:** Multiplicador de velocidad para el flujo y turbulencia del gas de electrones
+
+**Rango recomendado:** 1.0 a 3.0
+
+**Ejemplos:**
+- `1.0` → Velocidad estándar
+- `1.4` → Más dinámica (recomendado si se ve estático)
+- `2.0` → Muy agitado
+
+**Resultado:** Aumenta el movimiento interno del gas sin cambiar el avance de la brana.
 
 ---
 

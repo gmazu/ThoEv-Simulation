@@ -32,6 +32,7 @@ uniform float u_time;
 uniform vec2 u_resolution;
 uniform float u_curvature_left;
 uniform float u_curvature_right;
+uniform float u_electron_gas_speed;
 out vec4 FragColor;
 
 float hash(vec2 p) {
@@ -109,6 +110,7 @@ void main() {
 
     float t = u_time;
     float duration = 30.0;
+    float gasTime = t * u_electron_gas_speed;
 
     float baseProton = -aspect + (t / duration) * (aspect * 2.0);
     float baseElectron = aspect - (t / duration) * (aspect * 2.0);
@@ -136,8 +138,8 @@ void main() {
     float scatter = impact * smoothstep(0.45, 0.0, distContact);
     vec2 scatterDir = normalize(toContact + vec2(0.001, 0.0));
     vec2 scatterJitter = vec2(
-        fbm(uv * 6.0 + t * 1.2),
-        fbm(uv * 6.0 - t * 1.1)
+        fbm(uv * 6.0 + gasTime * 1.2),
+        fbm(uv * 6.0 - gasTime * 1.1)
     ) - 0.5;
     vec2 electronUV = uv;
     electronUV += scatterDir * scatter * 0.08;
@@ -162,9 +164,9 @@ void main() {
     protonCol = protonCol * (diff * vec3(1.0, 0.97, 0.92) * 2.0 + 0.5)
         + vec3(1.0, 0.9, 0.8) * spec * 2.0;
 
-    float turbulence = fbm(electronUV * 3.0 + t * 0.3);
+    float turbulence = fbm(electronUV * 3.0 + gasTime * 0.3);
     float density = turbulence * 0.6 + 0.3;
-    float vortex = length(curl(electronUV * 4.0, t)) * 1.5;
+    float vortex = length(curl(electronUV * 4.0, gasTime)) * 1.5;
     vortex = smoothstep(0.2, 0.7, vortex);
     vec3 gasBlue = vec3(0.3, 0.7, 1.0);
     vec3 glowBlue = vec3(0.5, 0.85, 1.0);
@@ -173,7 +175,7 @@ void main() {
     electronCol *= density;
     electronCol += vec3(0.4, 0.8, 1.0) * vortex * 0.4;
 
-    float edgeTurbulence = fbm(electronUV * 8.0 + t * 3.0);
+    float edgeTurbulence = fbm(electronUV * 8.0 + gasTime * 3.0);
     electronCol += edgeBlue * edgeTurbulence * scatter * 0.8;
 
     vec3 fusedCol = mix(protonCol, electronCol, 0.45);
@@ -246,6 +248,9 @@ class BranaColision:
     def run(self):
         duration = 30.0
         frame_time = 1.0 / FPS
+        electron_gas_speed = float(
+            CONFIG.get('particles', {}).get('electron_gas_speed', 1.0)
+        )
 
         if self.renderer.enabled:
             total_frames = int(duration * FPS)
@@ -272,6 +277,10 @@ class BranaColision:
                 glUniform1f(
                     glGetUniformLocation(self.shader, "u_curvature_right"),
                     CONFIG['branas']['curvature_right'],
+                )
+                glUniform1f(
+                    glGetUniformLocation(self.shader, "u_electron_gas_speed"),
+                    electron_gas_speed,
                 )
 
                 glBindVertexArray(self.vao)
@@ -307,6 +316,10 @@ class BranaColision:
                 glUniform1f(
                     glGetUniformLocation(self.shader, "u_curvature_right"),
                     CONFIG['branas']['curvature_right'],
+                )
+                glUniform1f(
+                    glGetUniformLocation(self.shader, "u_electron_gas_speed"),
+                    electron_gas_speed,
                 )
 
                 glBindVertexArray(self.vao)
