@@ -1,4 +1,4 @@
-# branas.py - Con curvatura configurable
+# branas.py - Con curvatura bidireccional
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -33,7 +33,8 @@ uniform float u_brana_scale;
 uniform float u_brana_speed;
 uniform float u_brana_width;
 uniform float u_brana_core;
-uniform float u_brana_curvature;
+uniform float u_brana_curvature_left;
+uniform float u_brana_curvature_right;
 uniform vec3 u_brana_left_color;
 uniform vec3 u_brana_right_color;
 
@@ -90,9 +91,9 @@ float particles(vec2 uv, float seed, float size, float density) {
     return glow * (particleHash - density) * u_particle_brightness;
 }
 
-float branaCurve(vec2 uv, float xPos) {
-    // Curvatura parabólica desde config
-    float xCurved = xPos + u_brana_curvature * uv.y * uv.y;
+float branaCurve(vec2 uv, float xPos, float curvature) {
+    // Curvatura con signo (+ derecha, - izquierda)
+    float xCurved = xPos + curvature * uv.y * uv.y;
     
     float distX = abs(uv.x - xCurved);
     float core = smoothstep(u_brana_core, 0.0, distX);
@@ -121,8 +122,8 @@ void main() {
         float leftPos = -u_brana_speed + (progress * u_brana_speed);
         float rightPos = u_brana_speed - (progress * u_brana_speed);
         
-        float leftBrana = branaCurve(uvBranas, leftPos);
-        float rightBrana = branaCurve(uvBranas, rightPos);
+        float leftBrana = branaCurve(uvBranas, leftPos, u_brana_curvature_left);
+        float rightBrana = branaCurve(uvBranas, rightPos, u_brana_curvature_right);
         float leftTrail = branaTrail(uvBranas, leftPos, -1.0);
         float rightTrail = branaTrail(uvBranas, rightPos, 1.0);
         
@@ -200,7 +201,8 @@ class Intro:
         glUniform1f(glGetUniformLocation(self.shader, "u_brana_speed"), CONFIG['branas']['speed'])
         glUniform1f(glGetUniformLocation(self.shader, "u_brana_width"), CONFIG['branas']['width'])
         glUniform1f(glGetUniformLocation(self.shader, "u_brana_core"), CONFIG['branas']['core'])
-        glUniform1f(glGetUniformLocation(self.shader, "u_brana_curvature"), CONFIG['branas']['curvature'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_brana_curvature_left"), CONFIG['branas']['curvature_left'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_brana_curvature_right"), CONFIG['branas']['curvature_right'])
         glUniform3f(glGetUniformLocation(self.shader, "u_brana_left_color"), *CONFIG['branas']['left_color'])
         glUniform3f(glGetUniformLocation(self.shader, "u_brana_right_color"), *CONFIG['branas']['right_color'])
         

@@ -12,7 +12,8 @@
     "speed": 3.0,
     "width": 3.0,
     "core": 0.15,
-    "curvature": 0.3,
+    "curvature_left": -0.3,
+    "curvature_right": 0.3,
     "left_color": [0.3, 0.7, 1.0],
     "right_color": [1.0, 0.5, 0.2]
   },
