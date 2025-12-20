@@ -128,7 +128,7 @@ void main() {
     float protonMask = 1.0 - smoothstep(protonCurved - edge, protonCurved + edge, uv.x);
     float electronMask = smoothstep(electronCurved - edge, electronCurved + edge, uv.x);
 
-    float contactX = mix(protonCurved, electronCurved, 0.5);
+    float contactX = protonCurved;
     float distContact = abs(uv.x - contactX);
     float contactBand = impact * exp(-distContact * 18.0) * (1.0 - abs(uv.y) * 0.7);
 
@@ -179,8 +179,7 @@ void main() {
     vec3 fusedCol = mix(protonCol, electronCol, 0.45);
     fusedCol += vec3(1.0, 0.95, 0.85) * contactBand * 1.8;
 
-    float blend = smoothstep(-0.1, 0.1, electronCurved - protonCurved);
-    vec3 col = mix(protonCol, electronCol, blend);
+    vec3 col = protonCol * protonMask + electronCol * electronMask;
     col = mix(col, fusedCol, contactBand);
 
     vec2 uvBig = vPos * 10.0;
