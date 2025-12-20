@@ -71,6 +71,43 @@ Este documento explica cada parámetro en `config.json` con ejemplos y resultado
 
 ---
 
+## 🐢 SLOW MOTION (Shader BigbangV2)
+
+Estos parámetros están dentro de `bigbangV2.py` (no en `config.json`).
+
+### `slowWindow`
+**Qué hace:** Ventana (en segundos) antes del choque donde todo entra en slow‑motion
+
+**Ejemplos:**
+- `3.0` → Slow‑motion largo
+- `2.0` → Slow‑motion corto
+
+**Resultado:** Afecta cuánto tiempo se mantiene la desaceleración previa a la colisión.
+
+---
+
+### `slowFactor`
+**Qué hace:** Multiplicador de velocidad durante el slow‑motion
+
+**Rango recomendado:** 0.2 a 0.6
+
+**Ejemplos:**
+- `0.35` → Lento y dramático
+- `0.5` → Lento moderado
+
+**Resultado:** Menor valor = más lento.
+
+---
+
+### `tStart`
+**Qué hace:** Inicio del slow‑motion (calculado automáticamente)
+
+**Fórmula:** `tStart = tHit - slowWindow`
+
+**Resultado:** No se ajusta directamente; depende de `slowWindow`.
+
+---
+
 ## 🌊 BRANAS
 
 ### `scale`

@@ -104,20 +104,38 @@ vec2 velocityField(vec2 p, float t) {
     return mainFlow + wave + vortex;
 }
 
+float warpTime(float tRaw, float duration) {
+    float tHit = duration * 0.5;
+    float slowWindow = 2.0;
+    float slowFactor = 0.35;
+    float tStart = max(0.0, tHit - slowWindow);
+
+    if (tRaw <= tStart) {
+        return tRaw;
+    }
+    if (tRaw < tHit) {
+        return tStart + (tRaw - tStart) * slowFactor;
+    }
+
+    float saved = (tHit - tStart) * (1.0 - slowFactor);
+    return tRaw - saved;
+}
+
 void main() {
     vec2 uv = vPos;
     float aspect = u_resolution.x / u_resolution.y;
     uv.x *= aspect;
 
-    float t = u_time * 0.5;
-
     float duration = 20.0;
-    float curtainPosProton = -aspect + (u_time / duration) * (aspect * 2.0);
+    float timeForMotion = warpTime(u_time, duration);
+    float t = timeForMotion * 0.5;
+
+    float curtainPosProton = -aspect + (timeForMotion / duration) * (aspect * 2.0);
     float curtainCurvedProton = curtainPosProton + u_curvature_left * uv.y * uv.y;
     float protonMask = 1.0 - smoothstep(curtainCurvedProton - 0.1, curtainCurvedProton + 0.1, uv.x);
     vec2 uvProton = vec2(uv.x - curtainCurvedProton, uv.y);
 
-    float curtainPosElectron = aspect - (u_time / duration) * (aspect * 2.0);
+    float curtainPosElectron = aspect - (timeForMotion / duration) * (aspect * 2.0);
     float curtainCurvedElectron = curtainPosElectron - u_curvature_right * uv.y * uv.y;
     float electronMask = smoothstep(curtainCurvedElectron - 0.1, curtainCurvedElectron + 0.1, uv.x);
     vec2 uvElectron = vec2(uv.x - curtainCurvedElectron, uv.y);
@@ -135,7 +153,7 @@ void main() {
     vec3 sn = normalize(vec3(0.0, 0.0, -1.0) + vec3(fx, fy, 0.0) * bumpFactor);
     vec3 sp = vec3(uv, 0.0);
     vec3 rd = normalize(vec3(uv, 1.0));
-    vec3 lp = vec3(cos(u_time) * 0.5, sin(u_time) * 0.2, -1.0);
+    vec3 lp = vec3(cos(timeForMotion) * 0.5, sin(timeForMotion) * 0.2, -1.0);
 
     vec3 ld = lp - sp;
     float lDist = max(length(ld), 0.0001);
@@ -169,8 +187,8 @@ void main() {
     vec2 distortion = curl(uvAdvected * 2.0, t) * 0.25;
     vec2 uvFinal = uvAdvected + distortion;
 
-    float turbulence = fbm(uvFinal * 10.0 + t * 0.3);
-    float density = turbulence * 1.0 + 0.3;
+    float turbulence = fbm(uvFinal * 3.0 + t * 0.3);
+    float density = turbulence * 0.6 + 0.3;
 
     float vortex = length(curl(uvFinal * 4.0, t)) * 1.5;
     vortex = smoothstep(0.2, 0.7, vortex);
@@ -237,7 +255,7 @@ class BigBangV2:
             self.renderer.enable()
 
     def run(self):
-        duration = 10.0
+        duration = 12.0
         frame_time = 1.0 / FPS
 
         if self.renderer.enabled:
