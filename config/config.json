@@ -1,0 +1,47 @@
+{
+  "render": {
+    "resolution": [1280, 720],
+    "fps": 30,
+    "duration": 10.0
+  },
+  "timing": {
+    "collision_time": 2.0
+  },
+  "branas": {
+    "scale": 1.0,
+    "speed": 3.0,
+    "width": 3.0,
+    "core": 0.15,
+    "left_color": [0.3, 0.7, 1.0],
+    "right_color": [1.0, 0.5, 0.2]
+  },
+  "particles": {
+    "proton_size": 0.02,
+    "proton_density": 0.85,
+    "proton_color": [0.5, 0.8, 1.0],
+    "electron_size": 0.015,
+    "electron_density": 0.88,
+    "electron_color": [1.0, 0.3, 0.2],
+    "grid_density": 15.0,
+    "brightness": 5.0
+  },
+  "trail": {
+    "decay": 0.8,
+    "intensity": 0.4
+  },
+  "mandala": {
+    "scale": 3.0,
+    "iterations": 6,
+    "speed": 0.4,
+    "fade_in": 0.8
+  },
+  "palette": {
+    "a": [0.5, 0.5, 0.5],
+    "b": [0.5, 0.5, 0.5],
+    "c": [1.0, 1.0, 1.0],
+    "d": [0.263, 0.416, 0.557]
+  },
+  "post": {
+    "contrast": 0.9
+  }
+}
