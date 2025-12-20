@@ -1,4 +1,4 @@
-# cortina.py - Cortina curva configurable
+# cortina.py - Océano de mercurio metálico
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -6,7 +6,6 @@ import numpy as np
 import time
 import json
 
-# Cargar config compartido
 with open('config/config.json', 'r') as f:
     CONFIG = json.load(f)
 
@@ -44,6 +43,11 @@ vec2 W(vec2 p, float t) {
     return mod(p, 2.0) - 1.0;
 }
 
+// Bump function para superficie
+float bumpFunc(vec2 p, float t) {
+    return length(W(p, t)) * 0.7071;
+}
+
 vec3 palette(float t) {
     vec3 a = vec3(0.5, 0.5, 0.5);
     vec3 b = vec3(0.5, 0.5, 0.5);
@@ -58,40 +62,71 @@ void main() {
     
     float t = u_time * 0.5;
     
-    // EL OCÉANO COMPLETO
-    vec2 warped = W(uv * 0.3, t);
-    float d = length(warped);
+    // BUMP MAPPING
+    vec2 eps = vec2(4.0 / u_resolution.y, 0.0);
     
-    d = sin(d * 8.0 + t) / 8.0;
-    d = abs(d);
-    d = 0.02 / d;
+    float f = bumpFunc(uv, t);
+    float fx = bumpFunc(uv - eps.xy, t);
+    float fy = bumpFunc(uv - eps.yx, t);
     
-    vec3 col = palette(length(uv) + t * 0.3);
-    vec3 pattern = col * d;
+    const float bumpFactor = 0.05;
     
-    // CORTINA CURVA que TAPA
+    fx = (fx - f) / eps.x;
+    fy = (fy - f) / eps.x;
+    
+    // Normal perturbada
+    vec3 sn = normalize(vec3(0.0, 0.0, -1.0) + vec3(fx, fy, 0.0) * bumpFactor);
+    
+    // LIGHTING
+    vec3 sp = vec3(uv, 0.0);
+    vec3 rd = normalize(vec3(uv, 1.0));
+    vec3 lp = vec3(cos(u_time) * 0.5, sin(u_time) * 0.2, -1.0);
+    
+    vec3 ld = lp - sp;
+    float lDist = max(length(ld), 0.0001);
+    ld /= lDist;
+    
+    float atten = 1.0 / (1.0 + lDist * lDist * 0.15);
+    atten *= f * 0.9 + 0.1;
+    
+    // Diffuse
+    float diff = max(dot(sn, ld), 0.0);
+    diff = pow(diff, 4.0) * 0.66 + pow(diff, 8.0) * 0.34;
+    
+    // Specular
+    float spec = pow(max(dot(reflect(-ld, sn), -rd), 0.0), 12.0);
+    
+    // Color mercurio metálico
+    vec3 mercuryBase = vec3(0.8, 0.85, 0.9); // Plateado
+    vec3 texCol = mercuryBase * (f * 0.5 + 0.5);
+    
+    // Color final con iluminación
+    vec3 col = (texCol * (diff * vec3(1.0, 0.97, 0.92) * 2.0 + 0.5) + 
+                vec3(1.0, 0.9, 0.8) * spec * 2.0) * atten;
+    
+    // Reflexión ambiental
+    float ref = max(dot(reflect(rd, sn), vec3(1.0)), 0.0);
+    col += col * pow(ref, 4.0) * vec3(0.4, 0.5, 0.6) * 2.0;
+    
+    // CORTINA CURVA
     float duration = 3.0;
     float aspectRatio = u_resolution.x / u_resolution.y;
     
-    // Posición base de la cortina
     float curtainPos = -aspectRatio + (u_time / duration) * (aspectRatio * 2.0);
+    float curtainCurved = curtainPos + u_curvature * uv.y * uv.y;
     
-    // Aplicar curvatura parabólica (como brana)
-    float curtainCurved = curtainPos - u_curvature * uv.y * uv.y;
-    
-    // Máscara INVERTIDA con curvatura
     float visible = 1.0 - smoothstep(curtainCurved - 0.1, curtainCurved + 0.1, uv.x);
     
-    vec3 finalColor = pattern * visible;
+    vec3 finalColor = col * visible;
     
-    FragColor = vec4(finalColor, 1.0);
+    FragColor = vec4(sqrt(clamp(finalColor, 0.0, 1.0)), 1.0);
 }
 """
 
 class Cortina:
     def __init__(self):
         glfw.init()
-        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Cortina Curva", None, None)
+        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Mercurio Líquido", None, None)
         glfw.make_context_current(self.window)
         
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
@@ -127,8 +162,7 @@ class Cortina:
             glUseProgram(self.shader)
             glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
             glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
-            # Usa curvatura del config (negativa para curvar hacia afuera como brana izquierda)
-            glUniform1f(glGetUniformLocation(self.shader, "u_curvature"), CONFIG['branas']['curvature_right'])
+            glUniform1f(glGetUniformLocation(self.shader, "u_curvature"), CONFIG['branas']['curvature_left'])
             
             glBindVertexArray(self.vao)
             glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
