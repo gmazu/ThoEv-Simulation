@@ -1,12 +1,17 @@
-# main.py - ThöEv completo mejorado
+# branas.py - ThöEv con config JSON
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import numpy as np
 import time
+import json
 
-RESOLUTION = (1280, 720)
-FPS = 30
+# Cargar configuración
+with open('config/config.json', 'r') as f:
+    CONFIG = json.load(f)
+
+RESOLUTION = tuple(CONFIG['render']['resolution'])
+FPS = CONFIG['render']['fps']
 
 VERTEX_SHADER = """
 #version 330 core
@@ -23,137 +28,131 @@ FRAGMENT_SHADER = """
 in vec2 vPos;
 uniform float u_time;
 uniform vec2 u_resolution;
+
+// Parámetros desde JSON
+uniform float u_collision_time;
+uniform float u_brana_scale;
+uniform float u_brana_speed;
+uniform float u_brana_width;
+uniform float u_brana_core;
+uniform vec3 u_brana_left_color;
+uniform vec3 u_brana_right_color;
+
+uniform float u_proton_size;
+uniform float u_proton_density;
+uniform vec3 u_proton_color;
+uniform float u_electron_size;
+uniform float u_electron_density;
+uniform vec3 u_electron_color;
+uniform float u_particle_grid;
+uniform float u_particle_brightness;
+
+uniform float u_trail_decay;
+uniform float u_trail_intensity;
+
+uniform float u_mandala_scale;
+uniform float u_mandala_iterations;
+uniform float u_mandala_speed;
+uniform float u_mandala_fade;
+
+uniform vec3 u_palette_a;
+uniform vec3 u_palette_b;
+uniform vec3 u_palette_c;
+uniform vec3 u_palette_d;
+
+uniform float u_contrast;
+
 out vec4 FragColor;
 
-// Hash para partículas
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-// Paleta mejorada
 vec3 palette(float t) {
-    vec3 a = vec3(0.5, 0.5, 0.5);
-    vec3 b = vec3(0.5, 0.5, 0.5);
-    vec3 c = vec3(1.0, 1.0, 1.0);
-    vec3 d = vec3(0.263, 0.416, 0.557);
-    return a + b * cos(6.28318 * (c * t + d));
+    return u_palette_a + u_palette_b * cos(6.28318 * (u_palette_c * t + u_palette_d));
 }
 
-// SDF círculo para partículas
 float circle(vec2 p, float r) {
     return length(p) - r;
 }
 
-// Partículas brillantes (protones o electrones)
 float particles(vec2 uv, float seed, float size, float density) {
-    vec2 gridPos = floor(uv * 15.0);
+    vec2 gridPos = floor(uv * u_particle_grid);
     float particleHash = hash(gridPos + seed);
     
     if (particleHash > density) return 0.0;
     
-    vec2 localPos = fract(uv * 15.0) - 0.5;
+    vec2 localPos = fract(uv * u_particle_grid) - 0.5;
     float dist = circle(localPos, size);
     
-    // Glow neón
     float glow = smoothstep(0.1, 0.0, dist);
     glow += 0.5 / (abs(dist) * 50.0 + 1.0);
     
-    return glow * (particleHash - density) * 5.0;
+    return glow * (particleHash - density) * u_particle_brightness;
 }
 
-// Brana con SDF mejorado
 float branaLine(vec2 uv, float xPos) {
     float distX = abs(uv.x - xPos);
-    
-    // SDF con smoothstep para bordes definidos
-    float core = smoothstep(0.15, 0.0, distX);
-    float glow = exp(-distX * 3.0);
-    
+    float core = smoothstep(u_brana_core, 0.0, distX);
+    float glow = exp(-distX * u_brana_width);
     float fadeY = smoothstep(2.0, 0.0, abs(uv.y));
-    
     return (core * 0.7 + glow * 0.3) * fadeY;
 }
 
-// Estela mejorada
 float branaTrail(vec2 uv, float xPos, float direction) {
     float behind = (uv.x - xPos) * direction;
     if (behind < 0.0) return 0.0;
-    
-    float trail = exp(-behind * 0.8) * exp(-abs(uv.y) * 0.6);
-    return trail * 0.4;
+    float trail = exp(-behind * u_trail_decay) * exp(-abs(uv.y) * 0.6);
+    return trail * u_trail_intensity;
 }
 
 void main() {
     vec3 finalColor = vec3(0.0);
     
-    // FASE 1: Branas con partículas (0-2 segundos)
-    if (u_time < 2.0) {
-        vec2 uvBranas = vPos * 1.0;
+    if (u_time < u_collision_time) {
+        vec2 uvBranas = vPos * u_brana_scale;
         uvBranas.x *= u_resolution.x / u_resolution.y;
         
-        float progress = u_time / 2.0;
-        float leftPos = -3.0 + (progress * 3.0);
-        float rightPos = 3.0 - (progress * 3.0);
+        float progress = u_time / u_collision_time;
+        float leftPos = -u_brana_speed + (progress * u_brana_speed);
+        float rightPos = u_brana_speed - (progress * u_brana_speed);
         
-        // Branas base
         float leftBrana = branaLine(uvBranas, leftPos);
         float rightBrana = branaLine(uvBranas, rightPos);
         float leftTrail = branaTrail(uvBranas, leftPos, -1.0);
         float rightTrail = branaTrail(uvBranas, rightPos, 1.0);
         
-        // Partículas dentro de branas
         vec2 uvLeft = uvBranas - vec2(leftPos, 0.0);
         vec2 uvRight = uvBranas - vec2(rightPos, 0.0);
         
-        // Protones azules en brana izquierda (pequeños)
-        float protones = particles(uvLeft, 1.0, 0.02, 0.85) * leftBrana;
+        float protones = particles(uvLeft, 1.0, u_proton_size, u_proton_density) * leftBrana;
+        float electrones = particles(uvRight, 2.0, u_electron_size, u_electron_density) * rightBrana;
         
-        // Electrones rojos en brana derecha (más pequeños)
-        float electrones = particles(uvRight, 2.0, 0.015, 0.88) * rightBrana;
-        
-        vec3 leftColor = vec3(0.3, 0.7, 1.0);
-        vec3 rightColor = vec3(1.0, 0.5, 0.2);
-        
-        // Color partículas
-        vec3 protonColor = vec3(0.5, 0.8, 1.0);
-        vec3 electronColor = vec3(1.0, 0.3, 0.2);
-        
-        finalColor = (leftBrana + leftTrail) * leftColor + 
-                     (rightBrana + rightTrail) * rightColor +
-                     protones * protonColor +
-                     electrones * electronColor;
+        finalColor = (leftBrana + leftTrail) * u_brana_left_color + 
+                     (rightBrana + rightTrail) * u_brana_right_color +
+                     protones * u_proton_color +
+                     electrones * u_electron_color;
     }
-    // FASE 2: Bigbang mejorado (después de 2 segundos)
     else {
-        vec2 uv = vPos * 3.0;
+        vec2 uv = vPos * u_mandala_scale;
         uv.x *= u_resolution.x / u_resolution.y;
         vec2 uv0 = uv;
         
-        float t = u_time - 2.0;
+        float t = u_time - u_collision_time;
         
-        // 6 iteraciones fractales (era 4)
-        for (float i = 0.0; i < 6.0; i++) {
+        for (float i = 0.0; i < u_mandala_iterations; i++) {
             uv = fract(uv * 1.5) - 0.5;
-            
             float d = length(uv) * exp(-length(uv0));
-            
-            vec3 col = palette(length(uv0) + i * 0.4 + t * 0.4);
-            
+            vec3 col = palette(length(uv0) + i * 0.4 + t * u_mandala_speed);
             d = sin(d * 8.0 + t) / 8.0;
             d = abs(d);
-            
-            // Neón intenso
             d = pow(0.01 / d, 1.2);
-            
             finalColor += col * d;
         }
         
-        // Transición suave
-        float fadeIn = smoothstep(0.0, 0.8, t);
+        float fadeIn = smoothstep(0.0, u_mandala_fade, t);
         finalColor *= fadeIn;
-        
-        // Contraste final
-        finalColor = pow(finalColor, vec3(0.9));
+        finalColor = pow(finalColor, vec3(u_contrast));
     }
     
     FragColor = vec4(finalColor, 1.0);
@@ -163,7 +162,7 @@ void main() {
 class Intro:
     def __init__(self):
         glfw.init()
-        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "ThöEv - Completo", None, None)
+        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "ThöEv", None, None)
         glfw.make_context_current(self.window)
         
         self.shader = compileProgram(
@@ -184,19 +183,63 @@ class Intro:
         
         self.start = time.time()
     
+    def set_uniforms(self, t):
+        glUseProgram(self.shader)
+        
+        glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
+        glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
+        
+        # Timing
+        glUniform1f(glGetUniformLocation(self.shader, "u_collision_time"), CONFIG['timing']['collision_time'])
+        
+        # Branas
+        glUniform1f(glGetUniformLocation(self.shader, "u_brana_scale"), CONFIG['branas']['scale'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_brana_speed"), CONFIG['branas']['speed'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_brana_width"), CONFIG['branas']['width'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_brana_core"), CONFIG['branas']['core'])
+        glUniform3f(glGetUniformLocation(self.shader, "u_brana_left_color"), *CONFIG['branas']['left_color'])
+        glUniform3f(glGetUniformLocation(self.shader, "u_brana_right_color"), *CONFIG['branas']['right_color'])
+        
+        # Partículas
+        glUniform1f(glGetUniformLocation(self.shader, "u_proton_size"), CONFIG['particles']['proton_size'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_proton_density"), CONFIG['particles']['proton_density'])
+        glUniform3f(glGetUniformLocation(self.shader, "u_proton_color"), *CONFIG['particles']['proton_color'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_electron_size"), CONFIG['particles']['electron_size'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_electron_density"), CONFIG['particles']['electron_density'])
+        glUniform3f(glGetUniformLocation(self.shader, "u_electron_color"), *CONFIG['particles']['electron_color'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_particle_grid"), CONFIG['particles']['grid_density'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_particle_brightness"), CONFIG['particles']['brightness'])
+        
+        # Trail
+        glUniform1f(glGetUniformLocation(self.shader, "u_trail_decay"), CONFIG['trail']['decay'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_trail_intensity"), CONFIG['trail']['intensity'])
+        
+        # Mandala
+        glUniform1f(glGetUniformLocation(self.shader, "u_mandala_scale"), CONFIG['mandala']['scale'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_mandala_iterations"), CONFIG['mandala']['iterations'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_mandala_speed"), CONFIG['mandala']['speed'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_mandala_fade"), CONFIG['mandala']['fade_in'])
+        
+        # Paleta
+        glUniform3f(glGetUniformLocation(self.shader, "u_palette_a"), *CONFIG['palette']['a'])
+        glUniform3f(glGetUniformLocation(self.shader, "u_palette_b"), *CONFIG['palette']['b'])
+        glUniform3f(glGetUniformLocation(self.shader, "u_palette_c"), *CONFIG['palette']['c'])
+        glUniform3f(glGetUniformLocation(self.shader, "u_palette_d"), *CONFIG['palette']['d'])
+        
+        # Post
+        glUniform1f(glGetUniformLocation(self.shader, "u_contrast"), CONFIG['post']['contrast'])
+    
     def run(self):
         while not glfw.window_should_close(self.window):
             t = time.time() - self.start
             
-            if t > 10.0:
+            if t > CONFIG['render']['duration']:
                 break
             
             glClearColor(0, 0, 0, 1)
             glClear(GL_COLOR_BUFFER_BIT)
             
-            glUseProgram(self.shader)
-            glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
-            glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
+            self.set_uniforms(t)
             
             glBindVertexArray(self.vao)
             glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
