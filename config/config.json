@@ -4,6 +4,7 @@
     "fps": 30,
     "duration": 10.0
   },
+  "bigbang_duration": 30.0,
   "timing": {
     "collision_time": 2.0
   },
