@@ -1,4 +1,4 @@
-# cortina_electron.py - Gas de electrones con shader mercurio adaptado
+# cortina_electron.py - Gas turbulento con remolinos (Electronos)
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -30,73 +30,87 @@ uniform vec2 u_resolution;
 uniform float u_curvature;
 out vec4 FragColor;
 
-vec2 W(vec2 p, float t) {
-    p = (p + 3.0) * 4.0;
-    
-    for (int i = 0; i < 3; i++) {
-        p += cos(p.yx * 3.0 + vec2(t, 1.57)) / 3.0;
-        p += sin(p.yx + t + vec2(1.57, 0.0)) / 2.0;
-        p *= 1.3;
-    }
-    
-    p += fract(sin(p + vec2(13, 7)) * 5e5) * 0.03 - 0.015;
-    return mod(p, 2.0) - 1.0;
+// Hash para ruido
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-float bumpFunc(vec2 p, float t) {
-    return length(W(p, t)) * 0.7071;
+// Ruido fractal para turbulencia
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// FBM (Fractal Brownian Motion) para turbulencia
+float fbm(vec2 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    
+    for (int i = 0; i < 4; i++) {
+        value += amplitude * noise(p * frequency);
+        frequency *= 2.0;
+        amplitude *= 0.5;
+    }
+    return value;
+}
+
+// Curl noise para remolinos
+vec2 curl(vec2 p, float t) {
+    float eps = 0.1;
+    float n1 = fbm(p + vec2(0.0, eps) + t * 0.1);
+    float n2 = fbm(p + vec2(0.0, -eps) + t * 0.1);
+    float n3 = fbm(p + vec2(eps, 0.0) + t * 0.1);
+    float n4 = fbm(p + vec2(-eps, 0.0) + t * 0.1);
+    
+    float dx = (n1 - n2) / (2.0 * eps);
+    float dy = (n3 - n4) / (2.0 * eps);
+    
+    return vec2(dy, -dx); // Rotado 90 grados para curl
 }
 
 void main() {
     vec2 uv = vPos;
     uv.x *= u_resolution.x / u_resolution.y;
     
-    float t = u_time * 0.5;
+    float t = u_time * 0.3;
     
-    // BUMP MAPPING (más suave para gas)
-    vec2 eps = vec2(4.0 / u_resolution.y, 0.0);
+    // Aplicar curl noise para remolinos
+    vec2 distortion = curl(uv * 2.0, t) * 0.3;
+    vec2 uvDistorted = uv + distortion;
     
-    float f = bumpFunc(uv, t);
-    float fx = bumpFunc(uv - eps.xy, t);
-    float fy = bumpFunc(uv - eps.yx, t);
+    // Turbulencia adicional
+    float turbulence = fbm(uvDistorted * 3.0 + t * 0.2);
     
-    const float bumpFactor = 0.03; // Más suave que mercurio (era 0.05)
+    // Densidad del gas (más transparente que líquido)
+    float density = turbulence * 0.6 + 0.2;
     
-    fx = (fx - f) / eps.x;
-    fy = (fy - f) / eps.x;
+    // Remolinos visibles
+    float vortex = length(curl(uv * 4.0, t)) * 2.0;
+    vortex = smoothstep(0.3, 0.8, vortex);
     
-    vec3 sn = normalize(vec3(0.0, 0.0, -1.0) + vec3(fx, fy, 0.0) * bumpFactor);
-    
-    // LIGHTING (más difusa para gas)
-    vec3 sp = vec3(uv, 0.0);
-    vec3 rd = normalize(vec3(uv, 1.0));
-    vec3 lp = vec3(cos(u_time) * 0.5, sin(u_time) * 0.2, -1.0);
-    
-    vec3 ld = lp - sp;
-    float lDist = max(length(ld), 0.0001);
-    ld /= lDist;
-    
-    float atten = 1.0 / (1.0 + lDist * lDist * 0.25); // Más atenuación
-    atten *= f * 0.8 + 0.2;
-    
-    // Diffuse (más suave)
-    float diff = max(dot(sn, ld), 0.0);
-    diff = pow(diff, 2.0) * 0.5 + pow(diff, 4.0) * 0.5; // Menos intenso
-    
-    // Specular (muy reducido para gas)
-    float spec = pow(max(dot(reflect(-ld, sn), -rd), 0.0), 8.0) * 0.3;
-    
-    // Color azul neón gaseoso
+    // Color base azul neón gaseoso
     vec3 gasBlue = vec3(0.3, 0.7, 1.0);
-    vec3 texCol = gasBlue * (f * 0.4 + 0.6); // Más uniforme
+    vec3 glowBlue = vec3(0.5, 0.85, 1.0);
     
-    // Color final más difuso
-    vec3 col = (texCol * (diff * vec3(0.9, 0.95, 1.0) * 1.5 + 0.5) + 
-                vec3(0.5, 0.8, 1.0) * spec * 0.5) * atten;
+    // Variación de color por turbulencia
+    vec3 col = mix(gasBlue, glowBlue, turbulence);
+    col *= density;
     
-    // Glow azul ambiental
-    float glow = pow(f, 2.0) * 0.3;
-    col += vec3(0.3, 0.6, 0.9) * glow;
+    // Agregar brillo en vórtices
+    col += vec3(0.4, 0.8, 1.0) * vortex * 0.3;
+    
+    // Glow atmosférico difuso
+    float atmosphericGlow = fbm(uv * 1.5 + t * 0.15) * 0.4;
+    col += gasBlue * atmosphericGlow * 0.2;
     
     // CORTINA CURVA (derecha → izquierda)
     float duration = 3.0;
@@ -105,19 +119,19 @@ void main() {
     float curtainPos = aspectRatio - (u_time / duration) * (aspectRatio * 2.0);
     float curtainCurved = curtainPos - u_curvature * uv.y * uv.y;
     
-    // Máscara invertida - lo que está a la derecha queda visible (gas revelado)
+    // Máscara correcta (aparece de derecha a izquierda)
     float visible = smoothstep(curtainCurved - 0.1, curtainCurved + 0.1, uv.x);
     
     vec3 finalColor = col * visible;
     
-    FragColor = vec4(sqrt(clamp(finalColor, 0.0, 1.0)), 1.0);
+    FragColor = vec4(finalColor, 1.0);
 }
 """
 
 class CortinaElectron:
     def __init__(self):
         glfw.init()
-        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Gas de Electrones", None, None)
+        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Electronos - Gas Turbulento", None, None)
         glfw.make_context_current(self.window)
         
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
