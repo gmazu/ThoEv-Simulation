@@ -1,4 +1,4 @@
-# branas.py - Con viewport corregido
+# branas.py - Con curvatura configurable
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -6,7 +6,6 @@ import numpy as np
 import time
 import json
 
-# Cargar configuración
 with open('config/config.json', 'r') as f:
     CONFIG = json.load(f)
 
@@ -29,12 +28,12 @@ in vec2 vPos;
 uniform float u_time;
 uniform vec2 u_resolution;
 
-// Parámetros desde JSON
 uniform float u_collision_time;
 uniform float u_brana_scale;
 uniform float u_brana_speed;
 uniform float u_brana_width;
 uniform float u_brana_core;
+uniform float u_brana_curvature;
 uniform vec3 u_brana_left_color;
 uniform vec3 u_brana_right_color;
 
@@ -91,8 +90,11 @@ float particles(vec2 uv, float seed, float size, float density) {
     return glow * (particleHash - density) * u_particle_brightness;
 }
 
-float branaLine(vec2 uv, float xPos) {
-    float distX = abs(uv.x - xPos);
+float branaCurve(vec2 uv, float xPos) {
+    // Curvatura parabólica desde config
+    float xCurved = xPos + u_brana_curvature * uv.y * uv.y;
+    
+    float distX = abs(uv.x - xCurved);
     float core = smoothstep(u_brana_core, 0.0, distX);
     float glow = exp(-distX * u_brana_width);
     float fadeY = smoothstep(2.0, 0.0, abs(uv.y));
@@ -107,18 +109,20 @@ float branaTrail(vec2 uv, float xPos, float direction) {
 }
 
 void main() {
+    vec2 uv = vPos;
+    uv.x *= u_resolution.x / u_resolution.y;
+    
     vec3 finalColor = vec3(0.0);
     
     if (u_time < u_collision_time) {
-        vec2 uvBranas = vPos * u_brana_scale;
-        uvBranas.x *= u_resolution.x / u_resolution.y;
+        vec2 uvBranas = uv * u_brana_scale;
         
         float progress = u_time / u_collision_time;
         float leftPos = -u_brana_speed + (progress * u_brana_speed);
         float rightPos = u_brana_speed - (progress * u_brana_speed);
         
-        float leftBrana = branaLine(uvBranas, leftPos);
-        float rightBrana = branaLine(uvBranas, rightPos);
+        float leftBrana = branaCurve(uvBranas, leftPos);
+        float rightBrana = branaCurve(uvBranas, rightPos);
         float leftTrail = branaTrail(uvBranas, leftPos, -1.0);
         float rightTrail = branaTrail(uvBranas, rightPos, 1.0);
         
@@ -134,15 +138,14 @@ void main() {
                      electrones * u_electron_color;
     }
     else {
-        vec2 uv = vPos * u_mandala_scale;
-        uv.x *= u_resolution.x / u_resolution.y;
-        vec2 uv0 = uv;
+        vec2 uvMandala = uv * u_mandala_scale;
+        vec2 uv0 = uvMandala;
         
         float t = u_time - u_collision_time;
         
         for (float i = 0.0; i < u_mandala_iterations; i++) {
-            uv = fract(uv * 1.5) - 0.5;
-            float d = length(uv) * exp(-length(uv0));
+            uvMandala = fract(uvMandala * 1.5) - 0.5;
+            float d = length(uvMandala) * exp(-length(uv0));
             vec3 col = palette(length(uv0) + i * 0.4 + t * u_mandala_speed);
             d = sin(d * 8.0 + t) / 8.0;
             d = abs(d);
@@ -165,7 +168,6 @@ class Intro:
         self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "ThöEv", None, None)
         glfw.make_context_current(self.window)
         
-        # CRÍTICO: Configurar viewport para usar toda la ventana
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
         
         self.shader = compileProgram(
@@ -192,18 +194,16 @@ class Intro:
         glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
         glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
         
-        # Timing
         glUniform1f(glGetUniformLocation(self.shader, "u_collision_time"), CONFIG['timing']['collision_time'])
         
-        # Branas
         glUniform1f(glGetUniformLocation(self.shader, "u_brana_scale"), CONFIG['branas']['scale'])
         glUniform1f(glGetUniformLocation(self.shader, "u_brana_speed"), CONFIG['branas']['speed'])
         glUniform1f(glGetUniformLocation(self.shader, "u_brana_width"), CONFIG['branas']['width'])
         glUniform1f(glGetUniformLocation(self.shader, "u_brana_core"), CONFIG['branas']['core'])
+        glUniform1f(glGetUniformLocation(self.shader, "u_brana_curvature"), CONFIG['branas']['curvature'])
         glUniform3f(glGetUniformLocation(self.shader, "u_brana_left_color"), *CONFIG['branas']['left_color'])
         glUniform3f(glGetUniformLocation(self.shader, "u_brana_right_color"), *CONFIG['branas']['right_color'])
         
-        # Partículas
         glUniform1f(glGetUniformLocation(self.shader, "u_proton_size"), CONFIG['particles']['proton_size'])
         glUniform1f(glGetUniformLocation(self.shader, "u_proton_density"), CONFIG['particles']['proton_density'])
         glUniform3f(glGetUniformLocation(self.shader, "u_proton_color"), *CONFIG['particles']['proton_color'])
@@ -213,23 +213,19 @@ class Intro:
         glUniform1f(glGetUniformLocation(self.shader, "u_particle_grid"), CONFIG['particles']['grid_density'])
         glUniform1f(glGetUniformLocation(self.shader, "u_particle_brightness"), CONFIG['particles']['brightness'])
         
-        # Trail
         glUniform1f(glGetUniformLocation(self.shader, "u_trail_decay"), CONFIG['trail']['decay'])
         glUniform1f(glGetUniformLocation(self.shader, "u_trail_intensity"), CONFIG['trail']['intensity'])
         
-        # Mandala
         glUniform1f(glGetUniformLocation(self.shader, "u_mandala_scale"), CONFIG['mandala']['scale'])
         glUniform1f(glGetUniformLocation(self.shader, "u_mandala_iterations"), CONFIG['mandala']['iterations'])
         glUniform1f(glGetUniformLocation(self.shader, "u_mandala_speed"), CONFIG['mandala']['speed'])
         glUniform1f(glGetUniformLocation(self.shader, "u_mandala_fade"), CONFIG['mandala']['fade_in'])
         
-        # Paleta
         glUniform3f(glGetUniformLocation(self.shader, "u_palette_a"), *CONFIG['palette']['a'])
         glUniform3f(glGetUniformLocation(self.shader, "u_palette_b"), *CONFIG['palette']['b'])
         glUniform3f(glGetUniformLocation(self.shader, "u_palette_c"), *CONFIG['palette']['c'])
         glUniform3f(glGetUniformLocation(self.shader, "u_palette_d"), *CONFIG['palette']['d'])
         
-        # Post
         glUniform1f(glGetUniformLocation(self.shader, "u_contrast"), CONFIG['post']['contrast'])
     
     def run(self):
