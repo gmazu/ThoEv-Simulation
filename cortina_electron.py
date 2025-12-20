@@ -1,4 +1,4 @@
-# cortina_electron.py - Gas turbulento con remolinos (Electronos)
+# cortina_electron.py - Gas con flujo y turbulencia en borde
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -30,12 +30,10 @@ uniform vec2 u_resolution;
 uniform float u_curvature;
 out vec4 FragColor;
 
-// Hash para ruido
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-// Ruido fractal para turbulencia
 float noise(vec2 p) {
     vec2 i = floor(p);
     vec2 f = fract(p);
@@ -49,13 +47,12 @@ float noise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-// FBM (Fractal Brownian Motion) para turbulencia
 float fbm(vec2 p) {
     float value = 0.0;
     float amplitude = 0.5;
     float frequency = 1.0;
     
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         value += amplitude * noise(p * frequency);
         frequency *= 2.0;
         amplitude *= 0.5;
@@ -63,7 +60,6 @@ float fbm(vec2 p) {
     return value;
 }
 
-// Curl noise para remolinos
 vec2 curl(vec2 p, float t) {
     float eps = 0.1;
     float n1 = fbm(p + vec2(0.0, eps) + t * 0.1);
@@ -74,52 +70,99 @@ vec2 curl(vec2 p, float t) {
     float dx = (n1 - n2) / (2.0 * eps);
     float dy = (n3 - n4) / (2.0 * eps);
     
-    return vec2(dy, -dx); // Rotado 90 grados para curl
+    return vec2(dy, -dx);
+}
+
+// Campo de velocidad del flujo
+vec2 velocityField(vec2 p, float t) {
+    // Flujo principal de derecha a izquierda
+    vec2 mainFlow = vec2(-1.0, 0.0);
+    
+    // Perturbaciones sinusoidales
+    vec2 wave = vec2(
+        sin(p.y * 3.0 + t * 2.0) * 0.3,
+        cos(p.x * 2.0 + t * 1.5) * 0.2
+    );
+    
+    // Remolinos locales
+    vec2 vortex = curl(p * 1.5, t) * 0.4;
+    
+    return mainFlow + wave + vortex;
 }
 
 void main() {
     vec2 uv = vPos;
     uv.x *= u_resolution.x / u_resolution.y;
     
-    float t = u_time * 0.3;
+    float t = u_time * 0.5;
     
-    // Aplicar curl noise para remolinos
-    vec2 distortion = curl(uv * 2.0, t) * 0.3;
-    vec2 uvDistorted = uv + distortion;
+    // ADVECCIÓN - el gas sigue el flujo
+    vec2 flow = velocityField(uv, t);
+    vec2 uvAdvected = uv;
     
-    // Turbulencia adicional
-    float turbulence = fbm(uvDistorted * 3.0 + t * 0.2);
+    // Integrar flujo hacia atrás en el tiempo (backtracing)
+    float dt = 0.05;
+    for (int i = 0; i < 3; i++) {
+        vec2 vel = velocityField(uvAdvected, t - float(i) * dt);
+        uvAdvected -= vel * dt;
+    }
     
-    // Densidad del gas (más transparente que líquido)
-    float density = turbulence * 0.6 + 0.2;
+    // Distorsión por curl
+    vec2 distortion = curl(uvAdvected * 2.0, t) * 0.25;
+    vec2 uvFinal = uvAdvected + distortion;
+    
+    // Turbulencia base
+    float turbulence = fbm(uvFinal * 3.0 + t * 0.3);
+    
+    // Densidad del gas
+    float density = turbulence * 0.6 + 0.3;
     
     // Remolinos visibles
-    float vortex = length(curl(uv * 4.0, t)) * 2.0;
-    vortex = smoothstep(0.3, 0.8, vortex);
+    float vortex = length(curl(uvFinal * 4.0, t)) * 1.5;
+    vortex = smoothstep(0.2, 0.7, vortex);
     
-    // Color base azul neón gaseoso
-    vec3 gasBlue = vec3(0.3, 0.7, 1.0);
-    vec3 glowBlue = vec3(0.5, 0.85, 1.0);
-    
-    // Variación de color por turbulencia
-    vec3 col = mix(gasBlue, glowBlue, turbulence);
-    col *= density;
-    
-    // Agregar brillo en vórtices
-    col += vec3(0.4, 0.8, 1.0) * vortex * 0.3;
-    
-    // Glow atmosférico difuso
-    float atmosphericGlow = fbm(uv * 1.5 + t * 0.15) * 0.4;
-    col += gasBlue * atmosphericGlow * 0.2;
-    
-    // CORTINA CURVA (derecha → izquierda)
+    // CORTINA CURVA
     float duration = 3.0;
     float aspectRatio = u_resolution.x / u_resolution.y;
     
     float curtainPos = aspectRatio - (u_time / duration) * (aspectRatio * 2.0);
     float curtainCurved = curtainPos - u_curvature * uv.y * uv.y;
     
-    // Máscara correcta (aparece de derecha a izquierda)
+    // Distancia al borde de la cortina
+    float distToCurtain = abs(uv.x - curtainCurved);
+    
+    // TURBULENCIA EXTRA EN EL BORDE (inercia/fricción)
+    float edgeTurbulence = 0.0;
+    if (distToCurtain < 0.3) {
+        // Turbulencia intensa cerca del borde
+        float edgeNoise = fbm(uv * 8.0 + t * 3.0);
+        edgeTurbulence = edgeNoise * (1.0 - distToCurtain / 0.3) * 0.5;
+        
+        // Vórtices en el borde
+        vec2 edgeCurl = curl(uv * 10.0, t * 2.0);
+        edgeTurbulence += length(edgeCurl) * 0.3;
+    }
+    
+    // Color base
+    vec3 gasBlue = vec3(0.3, 0.7, 1.0);
+    vec3 glowBlue = vec3(0.5, 0.85, 1.0);
+    vec3 edgeBlue = vec3(0.7, 0.9, 1.0);
+    
+    // Mezclar colores
+    vec3 col = mix(gasBlue, glowBlue, turbulence);
+    col *= density;
+    
+    // Vórtices brillan
+    col += vec3(0.4, 0.8, 1.0) * vortex * 0.4;
+    
+    // Turbulencia en borde (más brillante)
+    col += edgeBlue * edgeTurbulence * 0.8;
+    
+    // Glow atmosférico
+    float atmosphericGlow = fbm(uvFinal * 1.5 + t * 0.2) * 0.3;
+    col += gasBlue * atmosphericGlow * 0.15;
+    
+    // Máscara
     float visible = smoothstep(curtainCurved - 0.1, curtainCurved + 0.1, uv.x);
     
     vec3 finalColor = col * visible;
@@ -131,7 +174,7 @@ void main() {
 class CortinaElectron:
     def __init__(self):
         glfw.init()
-        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Electronos - Gas Turbulento", None, None)
+        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Electronos - Gas en Flujo", None, None)
         glfw.make_context_current(self.window)
         
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
