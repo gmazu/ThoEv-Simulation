@@ -152,7 +152,7 @@ class Cortina:
         self.start = time.time()
 
         # Video renderer
-        self.renderer = VideoRenderer(RESOLUTION[0], RESOLUTION[1], FPS, "cortina_mercurio.mp4")
+        self.renderer = VideoRenderer(RESOLUTION[0], RESOLUTION[1], FPS, "cortina_proton.mp4")
         if render_video:
             self.renderer.enable()
     
