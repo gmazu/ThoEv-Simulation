@@ -1,4 +1,4 @@
-# cortina_electron.py - Gas de electrones azul con estela
+# cortina_electron.py - Gas de electrones con shader mercurio adaptado
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -30,46 +30,87 @@ uniform vec2 u_resolution;
 uniform float u_curvature;
 out vec4 FragColor;
 
+vec2 W(vec2 p, float t) {
+    p = (p + 3.0) * 4.0;
+    
+    for (int i = 0; i < 3; i++) {
+        p += cos(p.yx * 3.0 + vec2(t, 1.57)) / 3.0;
+        p += sin(p.yx + t + vec2(1.57, 0.0)) / 2.0;
+        p *= 1.3;
+    }
+    
+    p += fract(sin(p + vec2(13, 7)) * 5e5) * 0.03 - 0.015;
+    return mod(p, 2.0) - 1.0;
+}
+
+float bumpFunc(vec2 p, float t) {
+    return length(W(p, t)) * 0.7071;
+}
+
 void main() {
     vec2 uv = vPos;
     uv.x *= u_resolution.x / u_resolution.y;
     
     float t = u_time * 0.5;
     
+    // BUMP MAPPING (más suave para gas)
+    vec2 eps = vec2(4.0 / u_resolution.y, 0.0);
+    
+    float f = bumpFunc(uv, t);
+    float fx = bumpFunc(uv - eps.xy, t);
+    float fy = bumpFunc(uv - eps.yx, t);
+    
+    const float bumpFactor = 0.03; // Más suave que mercurio (era 0.05)
+    
+    fx = (fx - f) / eps.x;
+    fy = (fy - f) / eps.x;
+    
+    vec3 sn = normalize(vec3(0.0, 0.0, -1.0) + vec3(fx, fy, 0.0) * bumpFactor);
+    
+    // LIGHTING (más difusa para gas)
+    vec3 sp = vec3(uv, 0.0);
+    vec3 rd = normalize(vec3(uv, 1.0));
+    vec3 lp = vec3(cos(u_time) * 0.5, sin(u_time) * 0.2, -1.0);
+    
+    vec3 ld = lp - sp;
+    float lDist = max(length(ld), 0.0001);
+    ld /= lDist;
+    
+    float atten = 1.0 / (1.0 + lDist * lDist * 0.25); // Más atenuación
+    atten *= f * 0.8 + 0.2;
+    
+    // Diffuse (más suave)
+    float diff = max(dot(sn, ld), 0.0);
+    diff = pow(diff, 2.0) * 0.5 + pow(diff, 4.0) * 0.5; // Menos intenso
+    
+    // Specular (muy reducido para gas)
+    float spec = pow(max(dot(reflect(-ld, sn), -rd), 0.0), 8.0) * 0.3;
+    
+    // Color azul neón gaseoso
+    vec3 gasBlue = vec3(0.3, 0.7, 1.0);
+    vec3 texCol = gasBlue * (f * 0.4 + 0.6); // Más uniforme
+    
+    // Color final más difuso
+    vec3 col = (texCol * (diff * vec3(0.9, 0.95, 1.0) * 1.5 + 0.5) + 
+                vec3(0.5, 0.8, 1.0) * spec * 0.5) * atten;
+    
+    // Glow azul ambiental
+    float glow = pow(f, 2.0) * 0.3;
+    col += vec3(0.3, 0.6, 0.9) * glow;
+    
     // CORTINA CURVA (derecha → izquierda)
     float duration = 3.0;
     float aspectRatio = u_resolution.x / u_resolution.y;
     
-    // Invertido: empieza desde la derecha
     float curtainPos = aspectRatio - (u_time / duration) * (aspectRatio * 2.0);
-    
-    // Aplicar curvatura (invertida para ir de derecha a izquierda)
     float curtainCurved = curtainPos - u_curvature * uv.y * uv.y;
     
-    // Distancia desde la posición de la cortina
-    float distFromCurtain = uv.x - curtainCurved;
+    // Máscara invertida - lo que está a la derecha queda visible (gas revelado)
+    float visible = smoothstep(curtainCurved - 0.1, curtainCurved + 0.1, uv.x);
     
-    // ANILLO NEÓN (franja brillante en el borde)
-    float ring = exp(-abs(distFromCurtain) * 20.0); // Anillo delgado
-    float ringGlow = exp(-abs(distFromCurtain) * 5.0); // Glow amplio
+    vec3 finalColor = col * visible;
     
-    // ESTELA (solo detrás de la cortina - lado derecho)
-    float trail = 0.0;
-    if (distFromCurtain > 0.0) { // Lado derecho de la cortina
-        trail = exp(-distFromCurtain * 2.0); // Desvanecimiento gradual
-        trail *= exp(-abs(uv.y) * 0.5); // Fade vertical
-    }
-    
-    // Color azul neón
-    vec3 blueNeon = vec3(0.3, 0.7, 1.0);
-    vec3 blueGlow = vec3(0.5, 0.8, 1.0);
-    
-    // Combinar anillo + estela
-    vec3 finalColor = ring * blueNeon * 2.0 +      // Anillo brillante
-                      ringGlow * blueGlow * 0.8 +   // Glow del anillo
-                      trail * blueNeon * 0.3;       // Estela azul
-    
-    FragColor = vec4(finalColor, 1.0);
+    FragColor = vec4(sqrt(clamp(finalColor, 0.0, 1.0)), 1.0);
 }
 """
 
