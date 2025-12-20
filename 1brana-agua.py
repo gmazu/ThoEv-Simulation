@@ -1,4 +1,4 @@
-# cortina.py - Patrón revelado por cortina móvil
+# cortina.py - Cortina que TAPA el océano (inverso)
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -25,7 +25,6 @@ uniform float u_time;
 uniform vec2 u_resolution;
 out vec4 FragColor;
 
-// Función W del código original
 vec2 W(vec2 p, float t) {
     p = (p + 3.0) * 4.0;
     
@@ -39,7 +38,6 @@ vec2 W(vec2 p, float t) {
     return mod(p, 2.0) - 1.0;
 }
 
-// Paleta de colores
 vec3 palette(float t) {
     vec3 a = vec3(0.5, 0.5, 0.5);
     vec3 b = vec3(0.5, 0.5, 0.5);
@@ -54,11 +52,10 @@ void main() {
     
     float t = u_time * 0.5;
     
-    // EL PATRÓN COMPLETO (siempre existe)
+    // EL OCÉANO COMPLETO (siempre existe)
     vec2 warped = W(uv * 0.3, t);
     float d = length(warped);
     
-    // Patrón sinusoidal
     d = sin(d * 8.0 + t) / 8.0;
     d = abs(d);
     d = 0.02 / d;
@@ -66,18 +63,17 @@ void main() {
     vec3 col = palette(length(uv) + t * 0.3);
     vec3 pattern = col * d;
     
-    // CORTINA QUE REVELA (izquierda → derecha)
-    float duration = 3.0; // Segundos para cruzar pantalla completa
+    // CORTINA QUE TAPA (izquierda → derecha)
+    float duration = 3.0;
     float aspectRatio = u_resolution.x / u_resolution.y;
     
-    // Posición de la cortina (-aspectRatio a +aspectRatio)
     float curtainPos = -aspectRatio + (u_time / duration) * (aspectRatio * 2.0);
     
-    // Máscara suave en el borde
-    float reveal = smoothstep(curtainPos - 0.1, curtainPos + 0.1, uv.x);
+    // Máscara INVERTIDA (1.0 = visible, 0.0 = tapado)
+    float visible = 1.0 - smoothstep(curtainPos - 0.1, curtainPos + 0.1, uv.x);
     
     // Aplicar máscara
-    vec3 finalColor = pattern * reveal;
+    vec3 finalColor = pattern * visible;
     
     FragColor = vec4(finalColor, 1.0);
 }
@@ -86,7 +82,7 @@ void main() {
 class Cortina:
     def __init__(self):
         glfw.init()
-        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Cortina Reveladora", None, None)
+        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Cortina que Tapa", None, None)
         glfw.make_context_current(self.window)
         
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
@@ -113,7 +109,7 @@ class Cortina:
         while not glfw.window_should_close(self.window):
             t = time.time() - self.start
             
-            if t > 6.0:  # 6 segundos (doble que duration para ver completo)
+            if t > 6.0:
                 break
             
             glClearColor(0, 0, 0, 1)

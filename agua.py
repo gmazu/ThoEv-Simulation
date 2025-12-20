@@ -25,7 +25,7 @@ uniform float u_time;
 uniform vec2 u_resolution;
 out vec4 FragColor;
 
-// Función W adaptada del código
+// FunciÃ³n W adaptada del cÃ³digo
 vec2 W(vec2 p, float t) {
     p = (p + 3.0) * 4.0;
     
@@ -63,14 +63,14 @@ void main() {
     float pulse = 0.9 + 0.1 * sin(u_time * 3.0);
     d *= pulse;
     
-    // Patrón sinusoidal
+    // PatrÃ³n sinusoidal
     d = sin(d * 8.0 + u_time) / 8.0;
     d = abs(d);
     
     // Glow intenso
     d = 0.02 / d;
     
-    // Color basado en posición y tiempo
+    // Color basado en posiciÃ³n y tiempo
     vec3 col = palette(length(uv) + u_time * 0.3);
     
     vec3 finalColor = col * d;
@@ -82,7 +82,7 @@ void main() {
 class Intro:
     def __init__(self):
         glfw.init()
-        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "ThöEv - Pulsante", None, None)
+        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "ThÃ¶Ev - Pulsante", None, None)
         glfw.make_context_current(self.window)
         
         self.shader = compileProgram(
