@@ -1,4 +1,4 @@
-# main.py - Mandala procedural con shader
+# main.py - Centrado
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
@@ -6,61 +6,56 @@ import numpy as np
 import time
 
 RESOLUTION = (1280, 720)
-FPS = 60
+FPS = 30
 
 VERTEX_SHADER = """
 #version 330 core
 layout (location = 0) in vec2 aPos;
 out vec2 vPos;
-uniform vec2 u_offset;
 void main() {
     vPos = aPos;
-    gl_Position = vec4(aPos.x + u_offset.x, aPos.y + u_offset.y, 0.0, 1.0);
+    gl_Position = vec4(aPos, 0.0, 1.0);
 }
 """
 
-# Shader que genera patrón de onda gravitacional
 FRAGMENT_SHADER = """
 #version 330 core
 in vec2 vPos;
 uniform float u_time;
-uniform bool u_show_mandala;
-uniform vec3 u_color;
+uniform vec2 u_resolution;
 out vec4 FragColor;
 
+vec3 palette(float t) {
+    vec3 a = vec3(0.5, 0.5, 0.5);
+    vec3 b = vec3(0.5, 0.5, 0.5);
+    vec3 c = vec3(1.0, 1.0, 1.0);
+    vec3 d = vec3(0.263, 0.416, 0.557);
+    return a + b * cos(6.28318 * (c * t + d));
+}
+
 void main() {
-    if (!u_show_mandala) {
-        FragColor = vec4(u_color, 1.0);
-        return;
+    vec2 uv = vPos * 10.0;
+    uv.x *= u_resolution.x / u_resolution.y;
+    
+    vec2 uv0 = uv;
+    vec3 finalColor = vec3(0.0);
+    
+    for (float i = 0.0; i < 4.0; i++) {
+        uv = fract(uv * 1.5) - 0.5;
+        
+        float d = length(uv) * exp(-length(uv0));
+        
+        vec3 col = palette(length(uv0) + i * 0.4 + u_time * 0.4);
+        
+        d = sin(d * 8.0 + u_time) / 8.0;
+        d = abs(d);
+        
+        d = pow(0.01 / d, 1.2);
+        
+        finalColor += col * d;
     }
     
-    // Distancia al centro
-    float dist = length(vPos);
-    
-    // Múltiples ondas concéntricas
-    float wave1 = sin(dist * 20.0 - u_time * 2.0);
-    float wave2 = sin(dist * 15.0 + u_time * 1.5);
-    float wave3 = sin(dist * 25.0 - u_time * 2.5);
-    
-    // Patrón angular (8 rayos)
-    float angle = atan(vPos.y, vPos.x);
-    float angular = sin(angle * 4.0) * 0.5 + 0.5;
-    
-    // Combinar ondas
-    float pattern = (wave1 + wave2 + wave3) * 0.333;
-    pattern *= angular;
-    
-    // Aberración cromática (separación RGB)
-    float r = sin(dist * 18.0 - u_time * 2.0 + 0.0) * 0.5 + 0.5;
-    float g = sin(dist * 20.0 - u_time * 2.0 + 2.0) * 0.5 + 0.5;
-    float b = sin(dist * 22.0 - u_time * 2.0 + 4.0) * 0.5 + 0.5;
-    
-    // Intensidad desde centro
-    float glow = 1.0 / (1.0 + dist * dist * 2.0);
-    
-    vec3 color = vec3(r, g, b) * glow * (pattern * 0.5 + 0.5);
-    
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(finalColor, 1.0);
 }
 """
 
@@ -75,93 +70,35 @@ class Intro:
             compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER)
         )
         
-        # Columna
-        col_vertices = np.array([
-            -0.1, -0.8,
-            -0.1,  0.8,
-             0.1,  0.8,
-             0.1, -0.8
-        ], dtype=np.float32)
+        vertices = np.array([-1,-1, -1,1, 1,1, 1,-1], dtype=np.float32)
         
-        self.vao_col = glGenVertexArrays(1)
-        self.vbo_col = glGenBuffers(1)
+        self.vao = glGenVertexArrays(1)
+        self.vbo = glGenBuffers(1)
         
-        glBindVertexArray(self.vao_col)
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbo_col)
-        glBufferData(GL_ARRAY_BUFFER, col_vertices.nbytes, col_vertices, GL_STATIC_DRAW)
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
-        
-        # Pantalla completa para mandala
-        screen_vertices = np.array([
-            -1, -1,
-            -1,  1,
-             1,  1,
-             1, -1
-        ], dtype=np.float32)
-        
-        self.vao_screen = glGenVertexArrays(1)
-        self.vbo_screen = glGenBuffers(1)
-        
-        glBindVertexArray(self.vao_screen)
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbo_screen)
-        glBufferData(GL_ARRAY_BUFFER, screen_vertices.nbytes, screen_vertices, GL_STATIC_DRAW)
+        glBindVertexArray(self.vao)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8, ctypes.c_void_p(0))
         glEnableVertexAttribArray(0)
         
         self.start = time.time()
-        self.collision_happened = False
-    
-    def draw_column(self, x_pos, color):
-        glUseProgram(self.shader)
-        loc_offset = glGetUniformLocation(self.shader, "u_offset")
-        loc_color = glGetUniformLocation(self.shader, "u_color")
-        loc_mandala = glGetUniformLocation(self.shader, "u_show_mandala")
-        
-        glUniform2f(loc_offset, x_pos, 0.0)
-        glUniform3f(loc_color, color[0], color[1], color[2])
-        glUniform1i(loc_mandala, 0)
-        
-        glBindVertexArray(self.vao_col)
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
-    
-    def draw_mandala(self, time_val):
-        glUseProgram(self.shader)
-        loc_time = glGetUniformLocation(self.shader, "u_time")
-        loc_mandala = glGetUniformLocation(self.shader, "u_show_mandala")
-        loc_offset = glGetUniformLocation(self.shader, "u_offset")
-        
-        glUniform1f(loc_time, time_val)
-        glUniform1i(loc_mandala, 1)
-        glUniform2f(loc_offset, 0.0, 0.0)
-        
-        glBindVertexArray(self.vao_screen)
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
     
     def run(self):
         while not glfw.window_should_close(self.window):
             t = time.time() - self.start
             
+            if t > 10.0:
+                break
+            
             glClearColor(0, 0, 0, 1)
             glClear(GL_COLOR_BUFFER_BIT)
             
-            pos_left = -1.5 + (t * 0.2)
-            pos_right = 1.5 - (t * 0.2)
+            glUseProgram(self.shader)
+            glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
+            glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
             
-            # Detectar contacto
-            if pos_left >= -0.1 and pos_right <= 0.1 and not self.collision_happened:
-                self.collision_happened = True
-                self.collision_time = t
-                print("¡CONTACTO! - Generando mandala...")
-            
-            if self.collision_happened:
-                # Mostrar mandala generado proceduralmente
-                time_since = t - self.collision_time
-                self.draw_mandala(time_since)
-            else:
-                # Columnas avanzando
-                self.draw_column(pos_left, (0.3, 0.7, 1.0))
-                self.draw_column(pos_right, (1.0, 0.4, 0.3))
+            glBindVertexArray(self.vao)
+            glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
             
             glfw.swap_buffers(self.window)
             glfw.poll_events()
