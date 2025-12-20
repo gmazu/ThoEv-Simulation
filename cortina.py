@@ -1,12 +1,17 @@
-# cortina.py - Cortina que TAPA el océano (inverso)
+# cortina.py - Cortina curva configurable
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import numpy as np
 import time
+import json
 
-RESOLUTION = (1280, 720)
-FPS = 30
+# Cargar config compartido
+with open('config/config.json', 'r') as f:
+    CONFIG = json.load(f)
+
+RESOLUTION = tuple(CONFIG['render']['resolution'])
+FPS = CONFIG['render']['fps']
 
 VERTEX_SHADER = """
 #version 330 core
@@ -23,6 +28,7 @@ FRAGMENT_SHADER = """
 in vec2 vPos;
 uniform float u_time;
 uniform vec2 u_resolution;
+uniform float u_curvature;
 out vec4 FragColor;
 
 vec2 W(vec2 p, float t) {
@@ -52,7 +58,7 @@ void main() {
     
     float t = u_time * 0.5;
     
-    // EL OCÉANO COMPLETO (siempre existe)
+    // EL OCÉANO COMPLETO
     vec2 warped = W(uv * 0.3, t);
     float d = length(warped);
     
@@ -63,16 +69,19 @@ void main() {
     vec3 col = palette(length(uv) + t * 0.3);
     vec3 pattern = col * d;
     
-    // CORTINA QUE TAPA (izquierda → derecha)
+    // CORTINA CURVA que TAPA
     float duration = 3.0;
     float aspectRatio = u_resolution.x / u_resolution.y;
     
+    // Posición base de la cortina
     float curtainPos = -aspectRatio + (u_time / duration) * (aspectRatio * 2.0);
     
-    // Máscara INVERTIDA (1.0 = visible, 0.0 = tapado)
-    float visible = 1.0 - smoothstep(curtainPos - 0.1, curtainPos + 0.1, uv.x);
+    // Aplicar curvatura parabólica (como brana)
+    float curtainCurved = curtainPos - u_curvature * uv.y * uv.y;
     
-    // Aplicar máscara
+    // Máscara INVERTIDA con curvatura
+    float visible = 1.0 - smoothstep(curtainCurved - 0.1, curtainCurved + 0.1, uv.x);
+    
     vec3 finalColor = pattern * visible;
     
     FragColor = vec4(finalColor, 1.0);
@@ -82,7 +91,7 @@ void main() {
 class Cortina:
     def __init__(self):
         glfw.init()
-        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Cortina que Tapa", None, None)
+        self.window = glfw.create_window(RESOLUTION[0], RESOLUTION[1], "Cortina Curva", None, None)
         glfw.make_context_current(self.window)
         
         glViewport(0, 0, RESOLUTION[0], RESOLUTION[1])
@@ -118,6 +127,8 @@ class Cortina:
             glUseProgram(self.shader)
             glUniform1f(glGetUniformLocation(self.shader, "u_time"), t)
             glUniform2f(glGetUniformLocation(self.shader, "u_resolution"), RESOLUTION[0], RESOLUTION[1])
+            # Usa curvatura del config (negativa para curvar hacia afuera como brana izquierda)
+            glUniform1f(glGetUniformLocation(self.shader, "u_curvature"), CONFIG['branas']['curvature_right'])
             
             glBindVertexArray(self.vao)
             glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
