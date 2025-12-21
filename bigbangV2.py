@@ -104,17 +104,18 @@ vec2 velocityField(vec2 p, float t) {
     return mainFlow + wave + vortex;
 }
 
-float warpTime(float tRaw, float duration) {
-    float tHit = duration * 0.5;
-    float window1 = 1.0;
-    float window2 = 0.5;
-    float releaseWindow = 0.05;
+float warpTime(float tRaw) {
+    float slow1_start = 6.0;
+    float slow1_end = 8.0;
+    float slow2_start = 9.0;
+    float slow2_end = 10.0;
     float factor1 = 0.5;
     float factor2 = 0.25;
 
-    float t0 = max(0.0, tHit - window1);
-    float t1 = max(t0, tHit - window2);
-    float t2 = max(t1, tHit - releaseWindow);
+    float t0 = slow1_start;
+    float t1 = max(t0, slow1_end);
+    float t2 = max(t1, slow2_start);
+    float t3 = max(t2, slow2_end);
 
     if (tRaw <= t0) {
         return tRaw;
@@ -123,15 +124,13 @@ float warpTime(float tRaw, float duration) {
         return t0 + (tRaw - t0) * factor1;
     }
     if (tRaw < t2) {
-        return t0 + (t1 - t0) * factor1 + (tRaw - t1) * factor2;
+        return t0 + (t1 - t0) * factor1 + (tRaw - t1);
     }
-    if (tRaw < tHit) {
-        return t0 + (t1 - t0) * factor1
-            + (t2 - t1) * factor2
-            + (tRaw - t2);
+    if (tRaw < t3) {
+        return t0 + (t1 - t0) * factor1 + (t2 - t1) + (tRaw - t2) * factor2;
     }
 
-    float saved = (t1 - t0) * (1.0 - factor1) + (t2 - t1) * (1.0 - factor2);
+    float saved = (t1 - t0) * (1.0 - factor1) + (t3 - t2) * (1.0 - factor2);
     return tRaw - saved;
 }
 
@@ -141,13 +140,17 @@ void main() {
     uv.x *= aspect;
 
     float duration = 20.0;
-    float timeForMotion = warpTime(u_time, duration);
+    float timeForMotion = warpTime(u_time);
     float t = timeForMotion * 0.5;
 
     float curtainPosProton = -aspect + (timeForMotion / duration) * (aspect * 2.0);
     float curtainCurvedProton = curtainPosProton + u_curvature_left * uv.y * uv.y;
     float protonMask = 1.0 - smoothstep(curtainCurvedProton - 0.1, curtainCurvedProton + 0.1, uv.x);
     vec2 uvProton = vec2(uv.x - curtainCurvedProton, uv.y);
+    float protonRadius = 1.0;
+    float ySphere = clamp(abs(uvProton.y) / protonRadius, 0.0, 1.0);
+    float profile = sqrt(1.0 - ySphere * ySphere);
+    vec2 uvProtonSphere = vec2(uvProton.x * profile, uvProton.y);
 
     float curtainPosElectron = aspect - (timeForMotion / duration) * (aspect * 2.0);
     float curtainCurvedElectron = curtainPosElectron - u_curvature_right * uv.y * uv.y;
@@ -156,9 +159,9 @@ void main() {
 
     // PROTON (brana_proton.py)
     vec2 eps = vec2(4.0 / u_resolution.y, 0.0);
-    float f = bumpFunc(uvProton, t);
-    float fx = bumpFunc(uvProton - eps.xy, t);
-    float fy = bumpFunc(uvProton - eps.yx, t);
+    float f = bumpFunc(uvProtonSphere, t);
+    float fx = bumpFunc(uvProtonSphere - eps.xy, t);
+    float fy = bumpFunc(uvProtonSphere - eps.yx, t);
 
     const float bumpFactor = 0.05;
     fx = (fx - f) / eps.x;

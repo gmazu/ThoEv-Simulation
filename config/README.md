@@ -108,6 +108,31 @@ Estos parámetros están dentro de `bigbangV2.py` (no en `config.json`).
 
 ---
 
+### `slow1_start` / `slow1_end` / `slow2_start` / `slow2_end`
+**Qué hace:** Ventanas de slow‑motion absolutas (en segundos) para `bigbangV2.py`
+
+**Ejemplos:**
+- `slow1_start = 6.0`, `slow1_end = 8.0` → Primer tramo al 50%
+- `slow2_start = 9.0`, `slow2_end = 10.0` → Segundo tramo al 25%
+
+**Resultado:** Controla cuándo empieza y termina cada tramo sin depender del choque.
+
+---
+
+### `protonRadius`
+**Qué hace:** Radio esférico (en coordenadas del shader) usado para curvar el material del protón
+
+**Rango recomendado:** 0.7 a 1.3
+
+**Ejemplos:**
+- `0.8` → Curvatura más fuerte (más “esfera”)
+- `1.0` → Valor estándar
+- `1.2` → Curvatura más suave
+
+**Resultado:** Deforma el material del protón sin mover el borde de la brana.
+
+---
+
 ## 🌊 BRANAS
 
 ### `scale`
