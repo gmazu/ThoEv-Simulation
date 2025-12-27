@@ -83,12 +83,16 @@ class ColisionUniversos(ThreeDScene):
             rate_func=rush_into
         )
         
-        # Flash de colisión
-        flash = Circle(radius=3, color=WHITE, fill_opacity=0.8)
+        # Flash de colisión (esfera 3D)
+        flash = Sphere(radius=3, resolution=(20, 20))
+        flash.set_color(WHITE)
+        flash.set_opacity(0.8)
+        self.add(flash)
         self.play(
             flash.animate.scale(0.1).set_opacity(0),
             run_time=0.5
         )
+        self.remove(flash)
         
         # Explosión de partículas
         self.explosion_particulas()
