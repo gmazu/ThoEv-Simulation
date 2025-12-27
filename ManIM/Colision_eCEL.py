@@ -73,8 +73,8 @@ class ColisionUniversos(ThreeDScene):
         self.universo_electrones = universo_electrones
     
     def escena_2_colision(self):
-        """10-20s: Momento de colisión"""
-        
+        """10-20s: Momento de colisión con deformación y ondas"""
+
         # Aceleración final
         self.play(
             self.universo_protones["grupo"].animate.shift(RIGHT * 1.5),
@@ -82,7 +82,28 @@ class ColisionUniversos(ThreeDScene):
             run_time=3,
             rate_func=rush_into
         )
-        
+
+        # Deformación de burbujas al contacto (efecto newtoniano)
+        burbuja_p = self.universo_protones["burbuja"]
+        burbuja_e = self.universo_electrones["burbuja"]
+
+        # Deformar burbujas hacia adentro en el punto de contacto
+        self.play(
+            burbuja_p.animate.stretch(0.7, 0),  # comprimir en X
+            burbuja_e.animate.stretch(0.7, 0),
+            run_time=0.3
+        )
+
+        # Ondas expansivas desde el punto de colisión
+        self.crear_ondas_expansivas(num_ondas=5, duracion=2)
+
+        # Recuperar forma mientras se fusionan
+        self.play(
+            burbuja_p.animate.stretch(1/0.7, 0).set_opacity(0.2),
+            burbuja_e.animate.stretch(1/0.7, 0).set_opacity(0.2),
+            run_time=0.5
+        )
+
         # Flash de colisión (esfera 3D)
         flash = Sphere(radius=3, resolution=(20, 20))
         flash.set_color(WHITE)
@@ -93,10 +114,10 @@ class ColisionUniversos(ThreeDScene):
             run_time=0.5
         )
         self.remove(flash)
-        
+
         # Explosión de partículas
         self.explosion_particulas()
-        
+
         self.wait(1)
     
     def escena_3_formacion(self):
@@ -233,3 +254,34 @@ class ColisionUniversos(ThreeDScene):
             run_time=2,
             rate_func=rush_from
         )
+
+    def crear_ondas_expansivas(self, num_ondas=5, duracion=2):
+        """Crea ondas expansivas desde el punto de colisión"""
+
+        ondas = []
+        delay_entre_ondas = duracion / num_ondas
+
+        for i in range(num_ondas):
+            # Crear esfera de onda
+            onda = Sphere(radius=0.5, resolution=(20, 20))
+            onda.set_color(WHITE)
+            onda.set_stroke(width=2)
+            onda.set_fill(opacity=0)
+            onda.set_stroke(opacity=0.8 - i * 0.15)  # cada onda más tenue
+            ondas.append(onda)
+
+        # Animar ondas secuencialmente
+        animaciones = []
+        for i, onda in enumerate(ondas):
+            self.add(onda)
+            # Cada onda aparece con un pequeño delay
+            self.play(
+                onda.animate.scale(6).set_stroke(opacity=0),
+                run_time=duracion * 0.8,
+                rate_func=linear
+            )
+            self.remove(onda)
+
+            # Esperar antes de la siguiente onda si no es la última
+            if i < len(ondas) - 1:
+                self.wait(delay_entre_ondas * 0.3)
