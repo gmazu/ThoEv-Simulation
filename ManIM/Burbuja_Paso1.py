@@ -214,13 +214,12 @@ class BurbujaPaso1(Scene):
         reflejo3.set_fill(WHITE, opacity=0.7)
         reflejo3.set_stroke(WHITE, width=0)
 
-        # Destello en punta - separado siguiendo la curva de la burbuja
-        # Más abajo y más separado del reflejo grande
+        # Destello en punta - más cerca del reflejo principal
         destello = Polygon(
-            [-0.8, -1.6, 0],   # arriba izquierda
-            [-0.6, -1.7, 0],   # arriba derecha
-            [-0.65, -1.95, 0], # punta principal abajo
-            [-0.9, -1.85, 0],  # lado izquierdo
+            [-0.95, -1.15, 0],  # arriba izquierda
+            [-0.75, -1.25, 0],  # arriba derecha
+            [-0.8, -1.5, 0],   # punta principal abajo
+            [-1.05, -1.35, 0], # lado izquierdo
             color=WHITE
         )
         destello.set_fill(WHITE, opacity=0.8)
