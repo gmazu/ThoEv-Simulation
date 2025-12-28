@@ -79,9 +79,9 @@ Serie de animaciones 3D que visualizan la colisión y fusión de universos proto
 - Cada onda más lenta y atenuada
 - Efecto 3D con stroke grueso
 
-**v9** - `Burbuja_Fusion_v9.py` ⭐ **RECOMENDADA**
+**v9** - `Burbuja_Fusion_v9.py`
 - Todo lo de v8 +
-- **5 ondas expansivas** configurables
+- **4 ondas expansivas** configurables
 - Sistema escalable (fácil agregar/quitar ondas)
 - Cada onda sucesivamente más lenta y atenuada
 - Las ondas continúan después de que las esferas desaparecen
@@ -90,14 +90,38 @@ Serie de animaciones 3D que visualizan la colisión y fusión de universos proto
   - Velocidad y atenuación de cada onda
   - Umbral de activación
 
+**v13-v16** - Desarrollo de galaxias/destellos
+- v13: Glow de prueba con efecto boya
+- v13.1, v13.2, v13.3: Forks para 3 escenarios físicos (atravesar, fusión, rebote)
+- v14: Anillo de galaxias con variación de brillo
+- v15: Distribución aleatoria tipo red cósmica
+- v16: 4 conjuntos de galaxias (uno por onda)
+
+**v17** - `Burbuja_Fusion_v17.py` ⭐ **VERSIÓN ACTUAL**
+- **Regiones del universo observable** expandiéndose
+- Cada destello representa una región del espacio
+- 4 ondas expansivas lilas (ondas de choque gravitacionales)
+- Cada onda activa un conjunto de ~20 "regiones" distribuidas aleatoriamente
+- Las regiones se **encienden, expanden radialmente y se apagan**
+- **Máximo 2 conjuntos visibles** (actual + anterior como estela)
+- Efecto de inercia: regiones siguen la onda pero más lento
+- Parámetros ajustables:
+  - `num_galaxias = 20` - Cantidad de regiones por onda
+  - `velocidad_expansion_base = 0.3` - Velocidad de expansión de regiones
+  - `radio_zona_galaxias = 0.35` - Radio máximo de distribución
+  - Brillo, velocidades encendido/apagado con variación aleatoria
+
 ### Ejecutar Simulaciones
 
 ```bash
-# v9 (recomendada) - calidad baja para pruebas
-manim -pql Burbuja_Fusion_v9.py FusionBurbujas3D
+# v17 (versión actual) - calidad baja para pruebas
+manim -pql Burbuja_Fusion_v17.py FusionBurbujas3D
 
-# v9 - calidad alta (1080p)
-manim -pqh Burbuja_Fusion_v9.py FusionBurbujas3D
+# v17 - calidad alta (1080p)
+manim -pqh Burbuja_Fusion_v17.py FusionBurbujas3D
+
+# v9 (solo ondas, sin regiones) - calidad baja
+manim -pql Burbuja_Fusion_v9.py FusionBurbujas3D
 ```
 
 ### Parámetros Ajustables (v9)
@@ -113,6 +137,57 @@ factor_opacidad = 0.75     # Cada onda 25% más tenue
 stroke_width_base = 6      # Grosor primera onda
 umbral_activacion = 0.5    # Cuando activa siguiente (0.5 = 50%)
 ```
+## Backlog - Simulación Fusión de Protocosmos
+
+### ✅ Completado (28 dic 2025)
+- ✅ Colisión de burbujas 3D con conservación de momento
+- ✅ 4 ondas expansivas lilas (ondas de choque gravitacionales)
+- ✅ Cámara orbital con rotación 180°
+- ✅ Regiones del universo observable (galaxias/destellos)
+- ✅ Distribución aleatoria tipo red cósmica
+- ✅ Expansión radial de regiones siguiendo ondas
+- ✅ Efecto estela (máximo 2 conjuntos visibles)
+- ✅ Variación aleatoria de brillo, velocidades y tamaños
+
+### 🔄 Pendiente - Siguiente Iteración
+
+**1. Parámetros físicos precisos**
+- [ ] Agregar parámetros reales que serán proporcionados:
+  - Radios específicos
+  - Ángulos de colisión
+  - Velocidades relativas
+  - Masas relativas
+  - Constantes físicas del modelo
+
+**2. Ubicación precisa de regiones/galaxias**
+- [ ] Confirmar dónde están realmente las regiones en el espacio
+- [ ] Validar física de expansión con modelo teórico
+- [ ] Ajustar distribución según red eCEL
+
+**3. Etiquetas y valores**
+- [ ] Agregar etiquetas a esferas (con valores proporcionados)
+- [ ] Agregar etiquetas al círculo lila
+- [ ] Mostrar parámetros físicos en pantalla
+- [ ] Etiquetas que roten con los objetos 3D
+
+**4. Escenarios físicos alternativos**
+- [ ] v13.1: Esferas se atraviesan completamente
+- [ ] v13.2: Esferas se frenan y quedan pegadas
+- [ ] v13.3: Esferas rebotan y se alejan
+
+**5. Multiverso**
+- [ ] Replicar múltiples colisiones simultáneas
+- [ ] Diferentes tamaños, colores, ángulos
+- [ ] Diferentes estados de fusión
+
+### 📝 Notas de Diseño
+- Cada "destello" representa una **región del universo observable**
+- Las ondas lilas son **ondas de choque gravitacionales**
+- La física emergió naturalmente de la simulación
+- El final de la animación revela estructura realista del universo
+
+---
+
 Instalación Dependencias
 Instalar Manim:
 bashpip install manim --break-system-packages
@@ -247,4 +322,4 @@ Contacto
 Agradecimientos
 Desarrollo asistido por Claude (Anthropic) en colaboración con el autor.
 
-Última actualización: 27 diciembre 2025
+Última actualización: 28 diciembre 2025 - v17 Simulación Fusión Protocosmos
