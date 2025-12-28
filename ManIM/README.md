@@ -58,6 +58,61 @@ Ubicación: docs/ThöEv_v11.md
 Videos Manim
 Secuencia Completa (3 videos)
 #ArchivoVideoDuraciónDescripción1colision_universos_v1.pyColisión Universos30-45sUniverso protones vs universo electrones, momento de colisión, formación inicial2formacion_ecel_v1.pyFormación red eCEL30-45sEmergencia red supersimétrica, rendijas naturales, estructura 3D3dualidad_particula_v1.pyDualidad Onda-Partícula2-3minElectrón cayendo por red eCEL, tablero de Galton, campana de Gauss
+
+## Simulaciones de Fusión de Protocosmos
+
+Serie de animaciones 3D que visualizan la colisión y fusión de universos protocósmicos (burbujas) con física realista y efectos de ondas expansivas.
+
+### Versiones Disponibles
+
+**v7** - `Burbuja_Fusion_v7.py`
+- Colisión de dos protocosmos (azul y rojo)
+- Ajuste gradual con conservación de momento
+- Círculo de intersección lila (punto de fusión)
+- Cámara orbital con rotación 180°
+- Las esferas desaparecen al final, quedando solo el círculo lila
+
+**v8** - `Burbuja_Fusion_v8.py`
+- Todo lo de v7 +
+- **2 ondas expansivas** tipo "piedra al lago"
+- Segunda onda aparece cuando primera llega al 50%
+- Cada onda más lenta y atenuada
+- Efecto 3D con stroke grueso
+
+**v9** - `Burbuja_Fusion_v9.py` ⭐ **RECOMENDADA**
+- Todo lo de v8 +
+- **5 ondas expansivas** configurables
+- Sistema escalable (fácil agregar/quitar ondas)
+- Cada onda sucesivamente más lenta y atenuada
+- Las ondas continúan después de que las esferas desaparecen
+- Parámetros ajustables:
+  - Número de ondas
+  - Velocidad y atenuación de cada onda
+  - Umbral de activación
+
+### Ejecutar Simulaciones
+
+```bash
+# v9 (recomendada) - calidad baja para pruebas
+manim -pql Burbuja_Fusion_v9.py FusionBurbujas3D
+
+# v9 - calidad alta (1080p)
+manim -pqh Burbuja_Fusion_v9.py FusionBurbujas3D
+```
+
+### Parámetros Ajustables (v9)
+
+En `Burbuja_Fusion_v9.py` líneas 79-91:
+
+```python
+num_ondas = 5              # Número de ondas (3, 4, 5, 6...)
+velocidad_base = 0.6       # Velocidad primera onda
+factor_velocidad = 0.7     # Cada onda 30% más lenta
+opacidad_base = 0.9        # Opacidad primera onda
+factor_opacidad = 0.75     # Cada onda 25% más tenue
+stroke_width_base = 6      # Grosor primera onda
+umbral_activacion = 0.5    # Cuando activa siguiente (0.5 = 50%)
+```
 Instalación Dependencias
 Instalar Manim:
 bashpip install manim --break-system-packages
