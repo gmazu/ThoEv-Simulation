@@ -166,7 +166,7 @@ class FusionBurbujas3D(ThreeDScene):
 
         # Posición fija en pantalla (lado derecho)
         pos_barra = np.array([5.0, 0, 0])
-        ancho_barra = 1.6  # 4x el ancho anterior
+        ancho_barra = 2.4  # Más ancha
         alto_barra = 3.0
 
         # Relleno degradado (de arriba claro a abajo transparente)
@@ -296,11 +296,29 @@ class FusionBurbujas3D(ThreeDScene):
 
         # Agrupar contenido
         contenido_tarjeta = VGroup(icono_rojo, texto_rojo, icono_azul, texto_azul)
-        barra_volumetrica.add(contenido_tarjeta)
 
         # FIJAR en frame 2D (no gira con cámara)
-        self.add_fixed_in_frame_mobjects(barra_volumetrica)
-        self.play(FadeIn(barra_volumetrica), run_time=0.5)
+        self.add_fixed_in_frame_mobjects(barra_volumetrica, contenido_tarjeta)
+
+        # Animación tipo "brocha de fotones" de arriba hacia abajo
+        # Ordenar elementos por posición Y (de arriba a abajo)
+        elementos_ordenados = sorted(
+            barra_volumetrica.submobjects,
+            key=lambda m: -m.get_center()[1]  # Mayor Y primero (arriba)
+        )
+        barra_ordenada = VGroup(*elementos_ordenados)
+
+        # Animar con LaggedStart (pincelada bajando)
+        self.play(
+            LaggedStart(
+                *[FadeIn(elem, shift=DOWN * 0.1) for elem in barra_ordenada],
+                lag_ratio=0.02,
+                run_time=1.5
+            )
+        )
+
+        # Luego aparece el contenido
+        self.play(FadeIn(contenido_tarjeta), run_time=0.5)
 
         # ═══════════════════════════════════════════════════════════════
         # CONFIGURACIÓN DE ONDAS EXPANSIVAS - AJUSTA AQUÍ
