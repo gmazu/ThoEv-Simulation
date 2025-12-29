@@ -161,54 +161,56 @@ class FusionBurbujas3D(ThreeDScene):
         # ETIQUETA VOLUMÉTRICA VERTICAL - ESTILO NOMAD (FIJA EN PANTALLA)
         # ═══════════════════════════════════════════════════════════════
 
-        # Rectángulo vertical con efecto glow tipo NOMAD
-        # Múltiples capas para simular luz volumétrica
+        # Panel NOMAD con 2 líneas neón + relleno degradado
         barra_volumetrica = VGroup()
 
         # Posición fija en pantalla (lado derecho)
         pos_barra = np.array([5.0, 0, 0])
-        ancho_barra = 0.4
+        ancho_barra = 1.6  # 4x el ancho anterior
         alto_barra = 3.0
 
-        # Capas de glow (de afuera hacia adentro)
-        for i in range(8):
-            ancho = ancho_barra + (7 - i) * 0.08  # Más ancho las capas externas
-            opacidad = 0.03 + i * 0.03  # Más opaco hacia el centro
-            capa = Rectangle(
-                width=ancho,
-                height=alto_barra,
+        # Relleno degradado (de arriba claro a abajo transparente)
+        num_segmentos = 20
+        for i in range(num_segmentos):
+            opacidad = 0.4 * (1 - i / num_segmentos)  # De 0.4 a 0
+            y_offset = (alto_barra / 2) - (i * alto_barra / num_segmentos) - (alto_barra / num_segmentos / 2)
+            segmento = Rectangle(
+                width=ancho_barra - 0.1,  # Un poco menos que el ancho total
+                height=alto_barra / num_segmentos,
                 fill_color=BLUE_B,
                 fill_opacity=opacidad,
                 stroke_width=0
             )
-            capa.move_to(pos_barra)
-            barra_volumetrica.add(capa)
-
-        # Núcleo brillante (centro vertical)
-        nucleo = Rectangle(
-            width=0.08,
-            height=alto_barra,
-            fill_color=WHITE,
-            fill_opacity=0.95,
-            stroke_width=0
-        )
-        nucleo.move_to(pos_barra)
-        barra_volumetrica.add(nucleo)
-
-        # Degradado vertical (más brillante arriba, se desvanece abajo)
-        num_segmentos_grad = 15
-        for i in range(num_segmentos_grad):
-            opacidad_grad = 0.3 * (1 - i / num_segmentos_grad)  # De 0.3 a 0
-            y_offset = (alto_barra / 2) - (i * alto_barra / num_segmentos_grad) - (alto_barra / num_segmentos_grad / 2)
-            segmento = Rectangle(
-                width=ancho_barra * 1.5,
-                height=alto_barra / num_segmentos_grad,
-                fill_color=BLUE_A,
-                fill_opacity=opacidad_grad,
-                stroke_width=0
-            )
             segmento.move_to(pos_barra + np.array([0, y_offset, 0]))
             barra_volumetrica.add(segmento)
+
+        # Línea neón izquierda (con glow)
+        for i in range(4):
+            grosor = 0.02 + i * 0.015
+            opacidad = 0.9 - i * 0.2
+            linea_izq = Rectangle(
+                width=grosor,
+                height=alto_barra,
+                fill_color=WHITE,
+                fill_opacity=opacidad,
+                stroke_width=0
+            )
+            linea_izq.move_to(pos_barra + np.array([-ancho_barra/2, 0, 0]))
+            barra_volumetrica.add(linea_izq)
+
+        # Línea neón derecha (con glow)
+        for i in range(4):
+            grosor = 0.02 + i * 0.015
+            opacidad = 0.9 - i * 0.2
+            linea_der = Rectangle(
+                width=grosor,
+                height=alto_barra,
+                fill_color=WHITE,
+                fill_opacity=opacidad,
+                stroke_width=0
+            )
+            linea_der.move_to(pos_barra + np.array([ancho_barra/2, 0, 0]))
+            barra_volumetrica.add(linea_der)
 
         # FIJAR en frame 2D (no gira con cámara)
         self.add_fixed_in_frame_mobjects(barra_volumetrica)
