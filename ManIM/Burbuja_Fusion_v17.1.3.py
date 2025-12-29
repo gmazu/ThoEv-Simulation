@@ -184,69 +184,78 @@ class FusionBurbujas3D(ThreeDScene):
             segmento.move_to(pos_barra + np.array([0, y_offset, 0]))
             barra_volumetrica.add(segmento)
 
-        # Línea neón izquierda (con degradado + efecto CRT lila)
-        num_seg_linea = 12
+        # Línea neón izquierda (BLANCO arriba → LILA → transparente)
+        num_seg_linea = 15
         alto_linea_izq = alto_barra * 0.6  # Llega hasta 60% del alto
         for j in range(num_seg_linea):
-            opacidad_seg = 0.8 * (1 - j / num_seg_linea)  # Degradado vertical
+            progreso = j / num_seg_linea  # 0 arriba, 1 abajo
+            opacidad_seg = 0.95 * (1 - progreso)  # Más brillo arriba
             y_offset = (alto_barra / 2) - (j * alto_linea_izq / num_seg_linea) - (alto_linea_izq / num_seg_linea / 2)
 
-            # Efecto CRT lila (glow lateral hacia adentro)
-            for k in range(5):
-                ancho_crt = 0.08 + k * 0.06  # Se expande hacia adentro
-                opacidad_crt = opacidad_seg * 0.15 * (1 - k / 5)
+            # Color: blanco arriba → lila abajo
+            # Interpolamos entre WHITE y PURPLE
+            color_seg = interpolate_color(WHITE, PURPLE_A, progreso)
+
+            # Efecto CRT (glow lateral hacia adentro)
+            for k in range(6):
+                ancho_crt = 0.1 + k * 0.08  # Se expande hacia adentro
+                opacidad_crt = opacidad_seg * 0.25 * (1 - k / 6)
                 crt_izq = Rectangle(
                     width=ancho_crt,
                     height=alto_linea_izq / num_seg_linea,
-                    fill_color=PURPLE_A,
+                    fill_color=color_seg,
                     fill_opacity=opacidad_crt,
                     stroke_width=0
                 )
                 crt_izq.move_to(pos_barra + np.array([-ancho_barra/2 + ancho_crt/2, y_offset, 0]))
                 barra_volumetrica.add(crt_izq)
 
-            # Núcleo blanco de la línea
-            for i in range(3):
-                grosor = 0.015 + i * 0.012
-                opacidad_glow = opacidad_seg * (1 - i * 0.3)
+            # Núcleo brillante de la línea
+            for i in range(4):
+                grosor = 0.02 + i * 0.015
+                opacidad_glow = opacidad_seg * (1 - i * 0.25)
                 seg_izq = Rectangle(
                     width=grosor,
                     height=alto_linea_izq / num_seg_linea,
-                    fill_color=WHITE,
+                    fill_color=color_seg,
                     fill_opacity=opacidad_glow,
                     stroke_width=0
                 )
                 seg_izq.move_to(pos_barra + np.array([-ancho_barra/2, y_offset, 0]))
                 barra_volumetrica.add(seg_izq)
 
-        # Línea neón derecha (con degradado + efecto CRT lila)
+        # Línea neón derecha (BLANCO arriba → LILA → transparente)
         alto_linea_der = alto_barra * 0.85  # Llega hasta 85% del alto
         for j in range(num_seg_linea):
-            opacidad_seg = 0.8 * (1 - j / num_seg_linea)  # Degradado vertical
+            progreso = j / num_seg_linea  # 0 arriba, 1 abajo
+            opacidad_seg = 0.95 * (1 - progreso)  # Más brillo arriba
             y_offset = (alto_barra / 2) - (j * alto_linea_der / num_seg_linea) - (alto_linea_der / num_seg_linea / 2)
 
-            # Efecto CRT lila (glow lateral hacia adentro)
-            for k in range(5):
-                ancho_crt = 0.08 + k * 0.06  # Se expande hacia adentro
-                opacidad_crt = opacidad_seg * 0.15 * (1 - k / 5)
+            # Color: blanco arriba → lila abajo
+            color_seg = interpolate_color(WHITE, PURPLE_A, progreso)
+
+            # Efecto CRT (glow lateral hacia adentro)
+            for k in range(6):
+                ancho_crt = 0.1 + k * 0.08  # Se expande hacia adentro
+                opacidad_crt = opacidad_seg * 0.25 * (1 - k / 6)
                 crt_der = Rectangle(
                     width=ancho_crt,
                     height=alto_linea_der / num_seg_linea,
-                    fill_color=PURPLE_A,
+                    fill_color=color_seg,
                     fill_opacity=opacidad_crt,
                     stroke_width=0
                 )
                 crt_der.move_to(pos_barra + np.array([ancho_barra/2 - ancho_crt/2, y_offset, 0]))
                 barra_volumetrica.add(crt_der)
 
-            # Núcleo blanco de la línea
-            for i in range(3):
-                grosor = 0.015 + i * 0.012
-                opacidad_glow = opacidad_seg * (1 - i * 0.3)
+            # Núcleo brillante de la línea
+            for i in range(4):
+                grosor = 0.02 + i * 0.015
+                opacidad_glow = opacidad_seg * (1 - i * 0.25)
                 seg_der = Rectangle(
                     width=grosor,
                     height=alto_linea_der / num_seg_linea,
-                    fill_color=WHITE,
+                    fill_color=color_seg,
                     fill_opacity=opacidad_glow,
                     stroke_width=0
                 )
