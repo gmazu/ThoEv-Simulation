@@ -88,7 +88,7 @@ class FusionBurbujas3D(ThreeDScene):
 
         # Versión (pegada al título, alineada al piso)
         version = Text(
-            "v17.1.1",
+            "v131n",
             font="monospace",
             font_size=20,
             color=GRAY_C
