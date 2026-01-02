@@ -1,0 +1,3 @@
+[submodule "ThoEv-Double-Sit-Electron"]
+	path = ThoEv-Double-Sit-Electron
+	url = git@github.com:gmazu/ThoEv-Double-Sit-Electron.git
